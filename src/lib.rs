@@ -409,13 +409,11 @@ pub mod tests{
         
         #[derive(Serialize, Deserialize)]
         struct Data{
-            pub repo: String,
-            pub commits: u16,
+            pub desc: String,
             pub budget: u16 
         }
         let data = Data{
-            repo: "github repo containing the code".to_string(), 
-            commits: 0u16,
+            desc: "nice decs".to_string(), 
             budget: 50
         };
         let stringify_data = serde_json::to_string_pretty(&data).unwrap();
@@ -448,13 +446,11 @@ pub mod tests{
 
         #[derive(Serialize, Deserialize)]
         struct Data{
-            pub repo: String,
-            pub commits: u16,
+            pub desc: String,
             pub budget: u16 
         }
         let data = Data{
-            repo: "github repo containing the code".to_string(), 
-            commits: 0u16,
+            desc: "nice decs".to_string(), 
             budget: 50
         };
         let stringify_data = serde_json::to_string_pretty(&data).unwrap();
@@ -496,13 +492,11 @@ pub mod tests{
 
         #[derive(Serialize, Deserialize)]
         struct Data{
-            pub repo: String,
-            pub commits: u16,
+            pub desc: String,
             pub budget: u16 
         }
         let data = Data{
-            repo: "github repo containing the code".to_string(), 
-            commits: 0u16,
+            desc: "nice decs".to_string(), 
             budget: 50
         };
         let stringify_data = serde_json::to_string_pretty(&data).unwrap();
