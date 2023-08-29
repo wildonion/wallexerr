@@ -64,8 +64,15 @@ pub struct NewSeedRequest{
 }
 
 
+#[derive(Serialize, Deserialize)]
+pub struct Data{
+    pub desc: String,
+    pub signed_at: i64,
+    pub signature: String
+}
+
 // https://thalesdocs.com/gphsm/luna/7/docs/network/Content/sdk/using/ecc_curve_cross-reference.htm
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Wallet {
     pub secp256k1_secret_key: Option<String>,
     pub secp256k1_public_key: Option<String>,
@@ -352,12 +359,13 @@ impl Wallet{
 pub struct Contract{
     pub wallet: Wallet,
     pub iat: i64,
-    pub owner: &'static str
+    pub owner: &'static str,
+    pub data: Option<Data>,
 }
 
 impl Contract{
 
-    pub fn new_with_ed25519(owner: &str) -> Self{
+    fn new_with_ed25519(owner: &str) -> Self{
         
         let static_owner = string_to_static_str(owner.to_string());
         let wallet = Wallet::new_ed25519();
@@ -365,12 +373,13 @@ impl Contract{
         Self { 
             wallet,
             iat: chrono::Local::now().timestamp_nanos(), 
-            owner: static_owner 
+            owner: static_owner,
+            data: None
         }
         
     }
 
-    pub fn new_with_secp256r1(owner: &str) -> Self{
+    fn new_with_secp256r1(owner: &str) -> Self{
         
         let static_owner = string_to_static_str(owner.to_string());
         let wallet = Wallet::new_secp256r1();
@@ -378,12 +387,13 @@ impl Contract{
         Self { 
             wallet,
             iat: chrono::Local::now().timestamp_nanos(), 
-            owner: static_owner 
+            owner: static_owner,
+            data: None
         }
         
     }
 
-    pub fn new_with_secp256k1(owner: &str) -> Self{
+    fn new_with_secp256k1(owner: &str) -> Self{
         
         let static_owner = string_to_static_str(owner.to_string());
         let wallet = Wallet::new_secp256k1(NewSeedRequest::default());
@@ -391,13 +401,19 @@ impl Contract{
         Self { 
             wallet,
             iat: chrono::Local::now().timestamp_nanos(), 
-            owner: static_owner 
+            owner: static_owner,
+            data: None
         }
         
     }
 
 }
 
+
+
+/* ----------------------------- */
+//              TESTS   
+/* ----------------------------- */
 
 #[cfg(test)]
 pub mod tests{
@@ -407,14 +423,10 @@ pub mod tests{
     #[test]
     pub fn ed25519_test() -> Result<(), ()>{
         
-        #[derive(Serialize, Deserialize)]
-        struct Data{
-            pub desc: String,
-            pub budget: u16 
-        }
-        let data = Data{
-            desc: "nice decs".to_string(), 
-            budget: 50
+        let mut data = Data{
+            desc: "".to_string(), 
+            signature: "".to_string(),
+            signed_at: 0,
         };
         let stringify_data = serde_json::to_string_pretty(&data).unwrap();
 
@@ -424,7 +436,7 @@ pub mod tests{
         
         let signature_hex = Wallet::ed25519_sign(stringify_data.clone(), contract.wallet.ed25519_secret_key.as_ref().unwrap());
         
-        let is_verified = Wallet::verify_ed25519_signature(signature_hex.unwrap(), stringify_data, contract.wallet.ed25519_public_key.unwrap());
+        let is_verified = Wallet::verify_ed25519_signature(signature_hex.clone().unwrap(), stringify_data, contract.wallet.ed25519_public_key.unwrap());
 
         let keypair = Wallet::retrieve_ed25519_keypair(
             /* 
@@ -433,6 +445,9 @@ pub mod tests{
             */
             contract.wallet.ed25519_secret_key.unwrap().as_str()
         );
+
+        data.signature = signature_hex.unwrap();
+        data.signed_at = chrono::Local::now().timestamp_nanos();
 
         match is_verified{
             true => Ok(()),
@@ -444,14 +459,10 @@ pub mod tests{
     #[test]
     pub fn secp256r1_test() -> Result<(), themis::Error>{
 
-        #[derive(Serialize, Deserialize)]
-        struct Data{
-            pub desc: String,
-            pub budget: u16 
-        }
-        let data = Data{
-            desc: "nice decs".to_string(), 
-            budget: 50
+        let mut data = Data{
+            desc: "".to_string(), 
+            signature: "".to_string(),
+            signed_at: 0,
         };
         let stringify_data = serde_json::to_string_pretty(&data).unwrap();
 
@@ -463,7 +474,7 @@ pub mod tests{
 
         let signature_hex = Wallet::secp256r1_sign(contract.wallet.secp256r1_secret_key.as_ref().unwrap().to_string(), stringify_data.clone());
 
-        let verification_result = Wallet::verify_secp256r1_signature(&signature_hex.unwrap(), contract.wallet.secp256r1_public_key.as_ref().unwrap().as_str());
+        let verification_result = Wallet::verify_secp256r1_signature(&signature_hex.clone().unwrap(), contract.wallet.secp256r1_public_key.as_ref().unwrap().as_str());
 
         let keypair = Wallet::retrieve_secp256r1_keypair(
             /* 
@@ -473,6 +484,9 @@ pub mod tests{
             contract.wallet.secp256r1_public_key.as_ref().unwrap(),
             contract.wallet.secp256r1_secret_key.as_ref().unwrap() 
         );
+
+        data.signature = signature_hex.unwrap();
+        data.signed_at = chrono::Local::now().timestamp_nanos();
 
         match verification_result{
             Ok(hashed_data_vector) => {
@@ -490,14 +504,10 @@ pub mod tests{
     #[test]
     pub fn secp256k1_test() -> Result<(), secp256k1::Error>{
 
-        #[derive(Serialize, Deserialize)]
-        struct Data{
-            pub desc: String,
-            pub budget: u16 
-        }
-        let data = Data{
-            desc: "nice decs".to_string(), 
-            budget: 50
+        let mut data = Data{
+            desc: "".to_string(), 
+            signature: "".to_string(),
+            signed_at: 0,
         };
         let stringify_data = serde_json::to_string_pretty(&data).unwrap();
 
@@ -516,6 +526,9 @@ pub mod tests{
             */
             contract.wallet.secp256k1_secret_key.as_ref().unwrap().as_str()
         );
+
+        data.signature = signature.to_string();
+        data.signed_at = chrono::Local::now().timestamp_nanos();
 
         match pubkey{
             Ok(pk) => {
