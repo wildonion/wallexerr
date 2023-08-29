@@ -34,6 +34,7 @@ pub fn string_to_static_str(s: String) -> &'static str {
 
 
 
+
 /* 
      ---------------------------------------------------------------------
     |  RSA (Asymmetric) Crypto Wallet Implementations using ECC Algorithms
@@ -44,6 +45,11 @@ pub fn string_to_static_str(s: String) -> &'static str {
     |
 
 */
+
+
+// https://stackoverflow.com/questions/11493254/can-aes-encryption-and-rsa-digital-signature-scheme-work-together-for-file-encry
+// https://github.com/skerkour/black-hat-rust/tree/main/ch_11
+// https://cryptobook.nakov.com/digital-signatures
 
 
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
