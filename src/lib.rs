@@ -39,7 +39,7 @@ pub fn string_to_static_str(s: String) -> &'static str {
     |  RSA (Asymmetric) Crypto Wallet Implementations using ECC Algorithms
     |---------------------------------------------------------------------
     | ed25519   -> EdDSA 
-    | secp256k1 -> EC
+    | secp256k1 -> EC (can be imported in EVM based wallets like metamask)
     | secp256r1 -> ECDSA
     |
 
@@ -109,7 +109,7 @@ impl Wallet{
         }
 
     }
-
+    
     pub fn new_secp256k1(input_seed: NewSeedRequest) -> Self{
 
         /* generating seed from the input id to create the rng for secp256k1 keypair */
@@ -128,7 +128,7 @@ impl Wallet{
         let prv_str = prvk.display_secret().to_string();
 
         Wallet{
-            secp256k1_secret_key: Some(prv_str),
+            secp256k1_secret_key: Some(prv_str), /* (compatible with all evm based chains) */
             secp256k1_public_key: Some(pubk.to_string()),
             secp256k1_public_address: Some(Self::generate_keccak256_from(pubk.to_string())),
             secp256r1_public_key: None,
