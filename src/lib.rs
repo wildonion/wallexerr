@@ -66,7 +66,7 @@ pub struct NewSeedRequest{
 
 #[derive(Serialize, Deserialize)]
 pub struct Data{
-    pub desc: String,
+    pub amount: u16,
     pub signed_at: i64,
     pub signature: String
 }
@@ -424,7 +424,7 @@ pub mod tests{
     pub fn ed25519_test() -> Result<(), ()>{
         
         let mut data = Data{
-            desc: "".to_string(), 
+            amount: 10, 
             signature: "".to_string(),
             signed_at: 0,
         };
@@ -432,7 +432,7 @@ pub mod tests{
 
         /* wallet operations */
 
-        let contract = Contract::new_with_ed25519("wildonion");
+        let contract = Contract::new_with_ed25519("0xDE6D7045Df57346Ec6A70DfE1518Ae7Fe61113f4");
         
         let signature_hex = Wallet::ed25519_sign(stringify_data.clone(), contract.wallet.ed25519_secret_key.as_ref().unwrap());
         
@@ -460,7 +460,7 @@ pub mod tests{
     pub fn secp256r1_test() -> Result<(), themis::Error>{
 
         let mut data = Data{
-            desc: "".to_string(), 
+            amount: 10, 
             signature: "".to_string(),
             signed_at: 0,
         };
@@ -468,7 +468,7 @@ pub mod tests{
 
         /* wallet operations */
         
-        let contract = Contract::new_with_secp256r1("wildonion");
+        let contract = Contract::new_with_secp256r1("0xDE6D7045Df57346Ec6A70DfE1518Ae7Fe61113f4");
 
         let hashed_data = Wallet::generate_sha256_from(stringify_data.clone());
 
@@ -505,7 +505,7 @@ pub mod tests{
     pub fn secp256k1_test() -> Result<(), secp256k1::Error>{
 
         let mut data = Data{
-            desc: "".to_string(), 
+            amount: 10, 
             signature: "".to_string(),
             signed_at: 0,
         };
@@ -513,7 +513,7 @@ pub mod tests{
 
         /* wallet operations */
 
-        let contract = Contract::new_with_secp256k1("wildonion");
+        let contract = Contract::new_with_secp256k1("0xDE6D7045Df57346Ec6A70DfE1518Ae7Fe61113f4");
 
         let signature = Wallet::secp256k1_sign(contract.wallet.secp256k1_secret_key.as_ref().unwrap().to_string(), stringify_data.clone());
 
