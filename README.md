@@ -21,6 +21,13 @@ cd themis
 make
 sudo make install
 ```
+
+> install on MacOS M1:
+
+```bash
+brew install libthemis
+```
+
 > also deploy with docker:
 
 ```bash 
