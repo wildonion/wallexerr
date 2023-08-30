@@ -14,7 +14,7 @@ use std::io::BufWriter;
 use tiny_keccak::keccak256;
 use std::str::FromStr;
 use std::{fs::OpenOptions, io::BufReader};
-use web3::{
+use web3::{ /* a crate to interact with evm based chains */
     transports,
     types::{Address, TransactionParameters, H256, U256},
     Web3,
@@ -50,8 +50,10 @@ pub fn string_to_static_str(s: String) -> &'static str {
 // https://stackoverflow.com/questions/11493254/can-aes-encryption-and-rsa-digital-signature-scheme-work-together-for-file-encry
 // https://github.com/skerkour/black-hat-rust/tree/main/ch_11
 // https://cryptobook.nakov.com/digital-signatures
+// https://github.com/tmsdev82/solana-wallet-tutorial/blob/main/src/main.rs
 
 
+/* following struct will be used as the seed to generate keypair, it's like mnemonic */
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
 pub struct NewSeedRequest{
     pub mail: String,

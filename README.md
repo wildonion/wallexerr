@@ -22,7 +22,7 @@ make
 sudo make install
 ```
 
-> install on MacOS M1:
+> install themis on MacOS M1:
 
 ```bash
 brew install libthemis
@@ -35,3 +35,17 @@ sudo docker network create -d bridge wallexerr || true
 sudo docker build -t wallexerr -f $(pwd)/Dockerfile . --no-cache
 sudo docker run -d --restart unless-stopped --link postgres --network wallexerr --name wallexerr -p 7443:7442 -v $(pwd)/infra/assets/:/usr/src/app/assets -v $(pwd)/infra/logs/:/usr/src/app/logs wallexerr
 ```
+
+## 🎯 Run
+
+```bash
+cargo run --bin wallexerr
+```
+
+## 🚧 WIPs
+
+- ed25519 in solana wallet
+- rsa and aes
+- bip mnemonic as seed for wallets
+- cli args
+- test commands
