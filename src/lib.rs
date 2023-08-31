@@ -187,7 +187,7 @@ impl Wallet{
 
     }
 
-    pub fn verify_ed25519_signature(sig: String, data: String, pubkey: String) -> bool{
+    pub fn verify_ed25519_signature(sig: String, data: String, pubkey: String) -> Result<(), ring::error::Unspecified>{
 
         /* 
             since sig and pubkey are hex string we have to get their bytes using 
@@ -210,10 +210,8 @@ impl Wallet{
             since a pointer to the underlying Vec<u8> means taking a slice of 
             vector with a valid lifetime
         */
-        match ring_pubkey.verify(&hash_data_bytes, &sig_bytes){ 
-            Ok(_) => true,
-            Err(_) => false
-        }
+        let verify_res = ring_pubkey.verify(&hash_data_bytes, &sig_bytes);
+        verify_res
 
     }
 
@@ -423,7 +421,7 @@ pub mod tests{
     use super::*;
 
     #[test]
-    pub fn ed25519_test() -> Result<(), ()>{
+    pub fn ed25519_test() -> Result<(), ring::error::Unspecified>{
         
         let mut data = Data{
             amount: 10, 
@@ -438,7 +436,7 @@ pub mod tests{
         
         let signature_hex = Wallet::ed25519_sign(stringify_data.clone(), contract.wallet.ed25519_secret_key.as_ref().unwrap());
         
-        let is_verified = Wallet::verify_ed25519_signature(signature_hex.clone().unwrap(), stringify_data, contract.wallet.ed25519_public_key.unwrap());
+        let verify_res = Wallet::verify_ed25519_signature(signature_hex.clone().unwrap(), stringify_data, contract.wallet.ed25519_public_key.unwrap());
 
         let keypair = Wallet::retrieve_ed25519_keypair(
             /* 
@@ -451,9 +449,11 @@ pub mod tests{
         data.signature = signature_hex.unwrap();
         data.signed_at = chrono::Local::now().timestamp_nanos();
 
-        match is_verified{
-            true => Ok(()),
-            false => Err(())
+        match verify_res{
+            Ok(is_verified) => {
+                Ok(())
+            },
+            Err(e) => Err(e)
         }
 
     }
@@ -493,10 +493,14 @@ pub mod tests{
         match verification_result{
             Ok(hashed_data_vector) => {
 
-                println!("hashed data inside sig: [{:?}]", &hashed_data_vector[..23]);
-                println!("hashed data: [{:?}]", hashed_data);
+                if hashed_data_vector == hashed_data{
+                    println!("[+] valid data");
+                } else{
+                    println!("[?] invalid data");
+                }
 
                 Ok(())
+
             },
             Err(e) => Err(e)
         }
