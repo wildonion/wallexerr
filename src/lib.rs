@@ -39,6 +39,8 @@ pub fn string_to_static_str(s: String) -> &'static str {
      ---------------------------------------------------------------------
     |  RSA (Asymmetric) Crypto Wallet Implementations using ECC Algorithms
     |---------------------------------------------------------------------
+    |
+    |       CURVES
     | ed25519   -> EdDSA 
     | secp256k1 -> EC (can be imported in EVM based wallets like metamask)
     | secp256r1 -> ECDSA
