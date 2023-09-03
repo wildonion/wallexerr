@@ -42,10 +42,19 @@ sudo docker run -d --restart unless-stopped --link postgres --network wallexerr 
 cargo run --bin wallexerr
 ```
 
+## 🧪 Tests
+
+```bash
+cargo test # test all wallets
+cargo test ed25519_test # test ed25519 wallet
+cargo test secp256r1_test # test secp256r1 wallet
+cargo test secp256k1_test # test secp256k1 wallet
+```
+
 ## 🚧 WIPs
 
 - ed25519 in solana wallet
-- rsa and aes
+- combination of rsa and aes
 - bip mnemonic as seed for wallets
-- cli args
-- test commands
+- cli args to generate wallets
+- save wallets in json files

@@ -115,6 +115,9 @@ impl Wallet{
         let pubkey_string = hex::encode(&pubkey);
         let prvkey_string  = hex::encode(&prvkey);
 
+        // TODO
+        // save to json files
+
         Wallet{
             secp256k1_secret_key: None,
             secp256k1_public_key: None,
@@ -144,6 +147,9 @@ impl Wallet{
         let (prvk, pubk) = secp.generate_keypair(rng);
         let prv_str = prvk.display_secret().to_string();
 
+        // TODO
+        // save to json files
+        
         Wallet{
             secp256k1_secret_key: Some(prv_str), /* (compatible with all evm based chains) */
             secp256k1_public_key: Some(pubk.to_string()),
@@ -162,6 +168,9 @@ impl Wallet{
         let (private, public) = ec_key_pair.clone().split();
         let hex_pub = Some(hex::encode(public.as_ref()));
         let hex_prv = Some(hex::encode(private.as_ref()));
+
+        // TODO
+        // save to json files
 
         Wallet { 
             secp256k1_secret_key: None, 
