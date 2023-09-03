@@ -1,6 +1,7 @@
 
 
 use sha2::{Digest, Sha256};
+use crypto;
 use std::fmt::Write;
 use ring::{signature as ring_signature, rand as ring_rand};
 use ring::signature::Ed25519KeyPair;
