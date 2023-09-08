@@ -8,11 +8,15 @@
 - secp256k1 -> EC (compatible with all EVM based chains)
 - secp256r1 -> ECDSA
 
-> refer to `themis-wasm` to see how to use themis inside js.
-
-## 🛠️ Setup 
+## 🛠️ Setup on local
 
 > refer to https://docs.cossacklabs.com/themis/installation/installation-from-packages/ if you don't want to build themis from source.
+
+> wallet infos are inside `wallet` folder.
+
+> refer to `themis-wasm` to see how to use themis inside js.
+
+first clone the repo then install the followings:
 
 ```bash
 wget http://archive.ubuntu.com/ubuntu/pool/main/o/openssl/libssl1.1_1.1.1f-1ubuntu2_amd64.deb
@@ -22,29 +26,17 @@ git clone https://github.com/cossacklabs/themis.git
 cd themis
 make
 sudo make install
-```
-
-> install themis on MacOS M1:
-
-```bash
+# install themis on MacOS M1
 brew install libthemis
 ```
 
-> also deploy with docker:
-
-```bash 
-sudo docker network create -d bridge wallexerr || true
-sudo docker build -t wallexerr -f $(pwd)/Dockerfile . --no-cache
-sudo docker run -d --restart unless-stopped --link postgres --network wallexerr --name wallexerr -p 7443:7442 -v $(pwd)/infra/assets/:/usr/src/app/assets -v $(pwd)/infra/logs/:/usr/src/app/logs wallexerr
-```
-
-## 🎯 Run
+### 🎯 Run
 
 ```bash
 cargo run --bin wallexerr
 ```
 
-## 🧪 Tests
+### 🧪 Tests
 
 ```bash
 cargo test # test all wallets
