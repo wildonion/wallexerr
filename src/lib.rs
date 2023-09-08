@@ -409,7 +409,7 @@ pub struct Contract{
 
 impl Contract{
 
-    fn new_with_ed25519(owner: &str) -> Self{
+    pub fn new_with_ed25519(owner: &str) -> Self{
         
         let static_owner = string_to_static_str(owner.to_string());
         let wallet = Wallet::new_ed25519();
@@ -423,7 +423,7 @@ impl Contract{
         
     }
 
-    fn new_with_secp256r1(owner: &str) -> Self{
+    pub fn new_with_secp256r1(owner: &str) -> Self{
         
         let static_owner = string_to_static_str(owner.to_string());
         let wallet = Wallet::new_secp256r1();
@@ -437,7 +437,7 @@ impl Contract{
         
     }
 
-    fn new_with_secp256k1(owner: &str, passphrase: &str) -> Self{
+    pub fn new_with_secp256k1(owner: &str, passphrase: &str) -> Self{
         
         let static_owner = string_to_static_str(owner.to_string());
         let wallet = Wallet::new_secp256k1(passphrase);
