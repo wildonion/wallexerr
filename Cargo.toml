@@ -6,7 +6,7 @@ authors = ["wildonion <abarmardeatashyne@gmail.com>"]
 description = "Crypto Contract Wallets"
 homepage = "https://github.com/wildonion/wallexerr/"
 keywords = ["wallet", "rust", "crypto", "blockchain"]
-license = "UNLICENSED"
+license = "MIT OR Apache-2.0"
 repository = "https://github.com/wildonion/wallexerr/"
 
 [dependencies]
