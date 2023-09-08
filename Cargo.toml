@@ -37,7 +37,7 @@ clap = "4.4.2"
 # we need lib.rs and crate type of cdylib for none binary like .wasm, .so, .dylib and .dll files or for tests
 crate-type = ["cdylib", "rlib"]
 path = "src/lib.rs"
-name = "crypter"
+name = "wallexerr"
 
 
 [profile.release]

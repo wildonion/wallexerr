@@ -35,7 +35,7 @@ use bip39::{Language, Mnemonic, MnemonicType, Seed};
     converting the String into an static str by leaking the memory of the 
     String to create a longer lifetime allocation for an slice of the String 
 */
-pub fn string_to_static_str(s: String) -> &'static str { 
+fn string_to_static_str(s: String) -> &'static str { 
     Box::leak(s.into_boxed_str()) 
 }
 
@@ -63,22 +63,9 @@ pub fn string_to_static_str(s: String) -> &'static str {
 
 
 
-/* following struct will be used as the seed to generate keypair, it's like mnemonic */
-#[derive(Serialize, Deserialize, Clone, Debug, Default)]
-pub struct NewSeedRequest{
-    pub mail: String,
-    pub username: String,
-    pub phone_number: String,
-    pub paypal_id: String,
-    pub account_number: String,
-    pub device_id: String,
-    pub social_id: String,
-}
-
-
 #[derive(Serialize, Deserialize)]
-pub struct Data{
-    pub amount: u16,
+pub struct DataBucket{
+    pub value: String, /* json stringify */
     pub signed_at: i64,
     pub signature: String
 }
@@ -417,7 +404,7 @@ pub struct Contract{
     pub wallet: Wallet,
     pub iat: i64,
     pub owner: &'static str,
-    pub data: Option<Data>,
+    pub data: Option<DataBucket>,
 }
 
 impl Contract{
@@ -480,8 +467,8 @@ pub mod tests{
     #[test]
     pub fn ed25519_test() -> Result<(), ring::error::Unspecified>{
         
-        let mut data = Data{
-            amount: 10, 
+        let mut data = DataBucket{
+            value: "json stringify data".to_string(), /* json stringify */ 
             signature: "".to_string(),
             signed_at: 0,
         };
@@ -518,8 +505,8 @@ pub mod tests{
     #[test]
     pub fn secp256r1_test() -> Result<(), themis::Error>{
 
-        let mut data = Data{
-            amount: 10, 
+        let mut data = DataBucket{
+            value: "json stringify data".to_string(), 
             signature: "".to_string(),
             signed_at: 0,
         };
@@ -567,8 +554,8 @@ pub mod tests{
     #[test]
     pub fn secp256k1_test() -> Result<(), secp256k1::Error>{
 
-        let mut data = Data{
-            amount: 10, 
+        let mut data = DataBucket{
+            value: "json stringify data".to_string(), 
             signature: "".to_string(),
             signed_at: 0,
         };
