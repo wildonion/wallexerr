@@ -1,0 +1,10 @@
+{
+  "secp256k1_secret_key": null,
+  "secp256k1_public_key": null,
+  "secp256k1_public_address": null,
+  "secp256k1_mnemonic": null,
+  "secp256r1_secret_key": null,
+  "secp256r1_public_key": null,
+  "ed25519_secret_key": "3053020101300506032b657004220420d8bb7de6c35f403a0be59d2075b4c26e99406f6bc906abb1799cc750c5d525a4a123032100a13e78e0509c33b7989d023376a4b391b7387f9bd914b6567c8f0208af40cd3d",
+  "ed25519_public_key": "a13e78e0509c33b7989d023376a4b391b7387f9bd914b6567c8f0208af40cd3d"
+}

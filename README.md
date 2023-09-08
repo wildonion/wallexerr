@@ -1,5 +1,7 @@
 
 
+> Command Line Crypt Wallet.
+
 ## 🖲 Algorithms
 
 - ed25519   -> EdDSA
@@ -53,8 +55,4 @@ cargo test secp256k1_test # test secp256k1 wallet
 
 ## 🚧 WIPs
 
-- ed25519 in solana wallet
-- combination of rsa and aes
-- bip mnemonic as seed for wallets
-- cli args to generate wallets
-- save wallets in json files
+- combination of rsa curves and aes (pgp and openssl)

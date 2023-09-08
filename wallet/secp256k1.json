@@ -1,0 +1,10 @@
+{
+  "secp256k1_secret_key": "be53f228235104a2891ee7a6eddc70da7d47104d4c306c71dbf324f2233375f2",
+  "secp256k1_public_key": "0350c89a71f786ce97c7029072783288b06eb9d13f38b4991850cd1459199acb87",
+  "secp256k1_public_address": "0xd4051d7cf91eac249c36af2955b06bf16088bf09",
+  "secp256k1_mnemonic": "kiwi length neither diet hockey cage cloth decline dice champion magnet boring",
+  "secp256r1_secret_key": null,
+  "secp256r1_public_key": null,
+  "ed25519_secret_key": null,
+  "ed25519_public_key": null
+}

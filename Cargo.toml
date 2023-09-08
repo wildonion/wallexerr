@@ -40,6 +40,8 @@ tiny-keccak = "1.4"
 web3 = "0.19.0"
 themis = "0.14.0"
 bindgen = "0.66.1"
+tiny-bip39 = "1.0.0"
+clap = "4.4.2"
 
 
 [lib]
@@ -49,6 +51,10 @@ crate-type = ["cdylib", "rlib"]
 path = "src/lib.rs"
 name = "crypter"
 
+
+[[bin]]
+path = "src/app.rs"
+name = "wallexerr"
 
 [profile.release]
 panic = "abort"
