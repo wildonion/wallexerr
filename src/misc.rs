@@ -10,9 +10,9 @@ use crate::*;
     |---------------------------------------------------------------------
     |
     |       CURVES
-    | ed25519   -> EdDSA 
-    | secp256k1 -> EC (can be imported in EVM based wallets like metamask)
-    | secp256r1 -> ECDSA
+    | ed25519   -> EdDSA                                                    ::::::: ring
+    | secp256k1 -> EC (can be imported in EVM based wallets like metamask)  ::::::: web3
+    | secp256r1 -> ECDSA                                                    ::::::: themis
     |
     |       ENTROPY
     | BIP39 SEED PHRASES
@@ -21,7 +21,6 @@ use crate::*;
 */
 
 
-// https://stackoverflow.com/questions/11493254/can-aes-encryption-and-rsa-digital-signature-scheme-work-together-for-file-encry
 // https://github.com/skerkour/black-hat-rust/tree/main/ch_11
 // https://cryptobook.nakov.com/digital-signatures
 

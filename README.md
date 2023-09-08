@@ -1,6 +1,6 @@
 
 
-> Command Line Crypt Wallet.
+> Crypto Contract Wallets.
 
 ## 🖲 Algorithms
 
@@ -52,7 +52,3 @@ cargo test ed25519_test # test ed25519 wallet
 cargo test secp256r1_test # test secp256r1 wallet
 cargo test secp256k1_test # test secp256k1 wallet
 ```
-
-## 🚧 WIPs
-
-- combination of rsa curves and aes (pgp and openssl)
