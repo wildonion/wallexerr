@@ -2,7 +2,6 @@
 
 
 use sha2::{Digest, Sha256};
-use crypto;
 use std::io::{BufWriter, Write, Read};
 use ring::{signature as ring_signature, rand as ring_rand};
 use ring::signature::Ed25519KeyPair;
@@ -26,7 +25,6 @@ use themis::keygen::gen_ec_key_pair;
 use themis::keys::{EcdsaKeyPair, EcdsaPrivateKey, EcdsaPublicKey};
 use themis::keys::KeyPair as ThemisKeyPair;
 use secp256k1::hashes::Hash;
-use rand::random;
 use bip39::{Language, Mnemonic, MnemonicType, Seed};
 
 
@@ -490,12 +488,15 @@ pub mod tests{
             contract.wallet.ed25519_secret_key.unwrap().as_str()
         );
 
-        data.signature = signature_hex.unwrap();
-        data.signed_at = chrono::Local::now().timestamp_nanos();
-
+        
         match verify_res{
             Ok(is_verified) => {
+                
+                /* fill the signature and signed_at fields if the signature was valid */
+                data.signature = signature_hex.unwrap();
+                data.signed_at = chrono::Local::now().timestamp_nanos();
                 Ok(())
+
             },
             Err(e) => Err(e)
         }
@@ -531,14 +532,17 @@ pub mod tests{
             contract.wallet.secp256r1_secret_key.as_ref().unwrap() 
         );
 
-        data.signature = signature_hex.unwrap();
-        data.signed_at = chrono::Local::now().timestamp_nanos();
-
+        
         match verification_result{
             Ok(hashed_data_vector) => {
-
+                
                 if hashed_data_vector == hashed_data{
+                    
+                    /* fill the signature and signed_at fields if the signature was valid */
+                    data.signature = signature_hex.unwrap();
+                    data.signed_at = chrono::Local::now().timestamp_nanos();
                     println!("[+] valid hash data");
+
                 } else{
                     println!("[?] invalid hash data");
                 }
@@ -577,15 +581,20 @@ pub mod tests{
             contract.wallet.secp256k1_secret_key.as_ref().unwrap().as_str()
         );
 
-        data.signature = signature.to_string();
-        data.signed_at = chrono::Local::now().timestamp_nanos();
-
+        
         match pubkey{
             Ok(pk) => {
-
+                
                 let verification_result = Wallet::verify_secp256k1_signature(stringify_data, signature, pk);
                 match verification_result{
-                    Ok(_) => Ok(()),
+                    Ok(_) => {
+                        
+                        /* fill the signature and signed_at fields if the signature was valid */
+                        data.signature = signature.to_string();
+                        data.signed_at = chrono::Local::now().timestamp_nanos();
+                        
+                        Ok(())
+                    },
                     Err(e) => Err(e) 
                 }
 
