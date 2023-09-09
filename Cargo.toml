@@ -5,7 +5,7 @@ edition = "2021"
 authors = ["wildonion <abarmardeatashyne@gmail.com>"]
 description = "Crypto Contract Wallets"
 homepage = "https://github.com/wildonion/wallexerr/"
-keywords = ["wallet", "ed25519", "secp256", "cryptography", "elliptic-curve-cryptography", "ecdsa", "rsa-cryptography", "blockchain", "web3"]
+keywords = ["ed25519", "secp256", "elliptic-curve-cryptography", "ecdsa", "rsa-cryptography", "web3"]
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/wildonion/wallexerr/"
 
