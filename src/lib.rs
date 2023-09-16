@@ -120,8 +120,6 @@ impl Wallet{
             ed25519_secret_key: Some(prvkey_string)
         };
 
-        Self::save_to_json(&wallet, "ed25519").unwrap();
-
         wallet
 
     }
@@ -147,8 +145,6 @@ impl Wallet{
             ed25519_secret_key: None
         };
 
-        Self::save_to_json(&wallet, "secp256k1").unwrap();
-
         wallet
 
     }
@@ -171,8 +167,6 @@ impl Wallet{
             ed25519_public_key: None,
             ed25519_secret_key: None,
         };
-
-        Self::save_to_json(&wallet, "secp256r1").unwrap();
 
         wallet
 
@@ -384,7 +378,7 @@ impl Wallet{
 
     }
 
-    fn save_to_json(wallet: &Wallet, _type: &str) -> Result<(), ()>{
+    pub fn save_to_json(wallet: &Wallet, _type: &str) -> Result<(), ()>{
 
         let walletdir = std::fs::create_dir_all("wallet").unwrap();
         let walletpath = format!("wallet/{_type:}.json");  
@@ -475,6 +469,7 @@ pub mod tests{
         /* wallet operations */
 
         let contract = Contract::new_with_ed25519("0xDE6D7045Df57346Ec6A70DfE1518Ae7Fe61113f4");
+        Wallet::save_to_json(&contract.wallet, "ed25519").unwrap();
         
         let signature_hex = Wallet::ed25519_sign(stringify_data.clone(), contract.wallet.ed25519_secret_key.as_ref().unwrap());
         
@@ -516,6 +511,7 @@ pub mod tests{
         /* wallet operations */
         
         let contract = Contract::new_with_secp256r1("0xDE6D7045Df57346Ec6A70DfE1518Ae7Fe61113f4");
+        Wallet::save_to_json(&contract.wallet, "secp256r1").unwrap();
 
         let hashed_data = Wallet::generate_sha256_from(stringify_data.clone());
 
@@ -568,6 +564,7 @@ pub mod tests{
         /* wallet operations */
 
         let contract = Contract::new_with_secp256k1("0xDE6D7045Df57346Ec6A70DfE1518Ae7Fe61113f4", "wildonion123");
+        Wallet::save_to_json(&contract.wallet, "secp256k1").unwrap();
 
         let signature = Wallet::secp256k1_sign(contract.wallet.secp256k1_secret_key.as_ref().unwrap().to_string(), stringify_data.clone());
 
