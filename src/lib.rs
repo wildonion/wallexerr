@@ -233,7 +233,24 @@ impl Wallet{
         secp256k1_pubkey
     }
 
-    pub fn verify_secp256k1_signature(data: &str, sig: &str, pk: PublicKey) -> Result<(), secp256k1::Error>{
+    pub fn verify_secp256k1_signature_from_pubkey_str(data: &str, sig: &str, pk: &str) -> Result<(), secp256k1::Error>{
+
+        /* 
+            data is required to be passed to the method since we'll compare
+            the hash of it with the one inside the signature 
+        */
+        let data_bytes = data.as_bytes();
+        let hashed_data = Message::from_hashed_data::<sha256::Hash>(data_bytes);
+        let sig = Signature::from_str(sig).unwrap();
+        let pubkey = PublicKey::from_str(pk).unwrap();
+            
+        /* message is an sha256 bits hashed data */
+        let secp = Secp256k1::verification_only();
+        secp.verify_ecdsa(&hashed_data, &sig, &pubkey)
+
+    }
+
+    pub fn verify_secp256k1_signature_from_pubkey(data: &str, sig: &str, pk: PublicKey) -> Result<(), secp256k1::Error>{
 
         /* 
             data is required to be passed to the method since we'll compare
@@ -590,7 +607,7 @@ pub mod tests{
         match pubkey{
             Ok(pk) => {
                 
-                let verification_result = Wallet::verify_secp256k1_signature(stringify_data.as_str(), signature.to_string().as_str(), pk);
+                let verification_result = Wallet::verify_secp256k1_signature_from_pubkey(stringify_data.as_str(), signature.to_string().as_str(), pk);
                 match verification_result{
                     Ok(_) => {
                         
