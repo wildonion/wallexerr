@@ -43,7 +43,7 @@ fn string_to_static_str(s: String) -> &'static str {
 
 /* 
      ---------------------------------------------------------------------
-    |  RSA (Asymmetric) Crypto Wallet Implementations using ECC Algorithms
+    |   RSA (Asymmetric) Crypto Wallet Implementations using ECC Curves
     |---------------------------------------------------------------------
     |
     |       CURVES
@@ -57,19 +57,20 @@ fn string_to_static_str(s: String) -> &'static str {
 
     https://github.com/skerkour/black-hat-rust/tree/main/ch_11
     https://cryptobook.nakov.com/digital-signatures
+    https://thalesdocs.com/gphsm/luna/7/docs/network/Content/sdk/using/ecc_curve_cross-reference.htm
+
 */
 
 
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone, Debug, Default)]
 pub struct DataBucket{
     pub value: String, /* json stringify */
     pub signed_at: i64,
     pub signature: String
 }
 
-// https://thalesdocs.com/gphsm/luna/7/docs/network/Content/sdk/using/ecc_curve_cross-reference.htm
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct Wallet {
     pub secp256k1_secret_key: Option<String>,
     pub secp256k1_public_key: Option<String>,
@@ -172,7 +173,7 @@ impl Wallet{
 
     }
 
-    pub fn ed25519_sign(data: String, prvkey: &str) -> Option<String>{
+    pub fn ed25519_sign(data: &str, prvkey: &str) -> Option<String>{
 
         /* generating sha25 bits hash of data */
         let hash_data_bytes = Self::generate_sha256_from(data);
@@ -186,7 +187,7 @@ impl Wallet{
 
     }
 
-    pub fn verify_ed25519_signature(sig: String, data: String, pubkey: String) -> Result<(), ring::error::Unspecified>{
+    pub fn verify_ed25519_signature(sig: &str, data: &str, pubkey: &str) -> Result<(), ring::error::Unspecified>{
 
         /* 
             since sig and pubkey are hex string we have to get their bytes using 
@@ -227,12 +228,12 @@ impl Wallet{
 
     }
 
-    pub fn generate_secp256k1_pubkey_from(pk: String) -> Result<PublicKey, secp256k1::Error>{
+    pub fn generate_secp256k1_pubkey_from(pk: &str) -> Result<PublicKey, secp256k1::Error>{
         let secp256k1_pubkey = PublicKey::from_str(&pk);
         secp256k1_pubkey
     }
 
-    pub fn verify_secp256k1_signature(data: String, sig: Signature, pk: PublicKey) -> Result<(), secp256k1::Error>{
+    pub fn verify_secp256k1_signature(data: &str, sig: &str, pk: PublicKey) -> Result<(), secp256k1::Error>{
 
         /* 
             data is required to be passed to the method since we'll compare
@@ -240,6 +241,7 @@ impl Wallet{
         */
         let data_bytes = data.as_bytes();
         let hashed_data = Message::from_hashed_data::<sha256::Hash>(data_bytes);
+        let sig = Signature::from_str(sig).unwrap();
             
         /* message is an sha256 bits hashed data */
         let secp = Secp256k1::verification_only();
@@ -262,9 +264,9 @@ impl Wallet{
         (public_key, secret_key)
     }
 
-    pub fn secp256k1_sign(signer: String, data: String) -> Signature{
+    pub fn secp256k1_sign(signer: &str, data: &str) -> Signature{
 
-        let secret_key = SecretKey::from_str(&signer).unwrap();
+        let secret_key = SecretKey::from_str(signer).unwrap();
         let data_bytes = data.as_bytes();
         let hashed_data = Message::from_hashed_data::<sha256::Hash>(data_bytes);
         
@@ -294,7 +296,7 @@ impl Wallet{
 
     }
 
-    pub fn secp256r1_sign(signer: String, data: String) -> Option<String>{
+    pub fn secp256r1_sign(signer: &str, data: &str) -> Option<String>{
 
         /* 
             since signer is a hex string we have to get its bytes using 
@@ -343,7 +345,7 @@ impl Wallet{
 
     }
 
-    pub fn generate_sha256_from(data: String) -> [u8; 32]{
+    pub fn generate_sha256_from(data: &str) -> [u8; 32]{
 
         /* generating sha25 bits hash of data */
         let data_bytes = data.as_bytes();
@@ -381,11 +383,17 @@ impl Wallet{
     pub fn save_to_json(wallet: &Wallet, _type: &str) -> Result<(), ()>{
 
         let walletdir = std::fs::create_dir_all("wallet").unwrap();
+        let errordir = std::fs::create_dir_all("logs").unwrap();
         let walletpath = format!("wallet/{_type:}.json");  
+        let errorpath = format!("logs/error.log");  
         let mut file = std::fs::File::create(walletpath).unwrap();
+        let mut filelog = std::fs::File::create(errorpath).unwrap();
         
         let pretty_json = serde_json::to_string_pretty(wallet).unwrap();
-        file.write(pretty_json.as_bytes());
+        let write_res = file.write(pretty_json.as_bytes());
+        if let Err(why) = write_res{
+            filelog.write(why.to_string().as_bytes());
+        } 
 
         Ok(())
     }
@@ -471,9 +479,9 @@ pub mod tests{
         let contract = Contract::new_with_ed25519("0xDE6D7045Df57346Ec6A70DfE1518Ae7Fe61113f4");
         Wallet::save_to_json(&contract.wallet, "ed25519").unwrap();
         
-        let signature_hex = Wallet::ed25519_sign(stringify_data.clone(), contract.wallet.ed25519_secret_key.as_ref().unwrap());
+        let signature_hex = Wallet::ed25519_sign(stringify_data.clone().as_str(), contract.wallet.ed25519_secret_key.as_ref().unwrap().as_str());
         
-        let verify_res = Wallet::verify_ed25519_signature(signature_hex.clone().unwrap(), stringify_data, contract.wallet.ed25519_public_key.unwrap());
+        let verify_res = Wallet::verify_ed25519_signature(signature_hex.clone().unwrap().as_str(), stringify_data.as_str(), contract.wallet.ed25519_public_key.unwrap().as_str());
 
         let keypair = Wallet::retrieve_ed25519_keypair(
             /* 
@@ -513,9 +521,9 @@ pub mod tests{
         let contract = Contract::new_with_secp256r1("0xDE6D7045Df57346Ec6A70DfE1518Ae7Fe61113f4");
         Wallet::save_to_json(&contract.wallet, "secp256r1").unwrap();
 
-        let hashed_data = Wallet::generate_sha256_from(stringify_data.clone());
+        let hashed_data = Wallet::generate_sha256_from(stringify_data.clone().as_str());
 
-        let signature_hex = Wallet::secp256r1_sign(contract.wallet.secp256r1_secret_key.as_ref().unwrap().to_string(), stringify_data.clone());
+        let signature_hex = Wallet::secp256r1_sign(contract.wallet.secp256r1_secret_key.as_ref().unwrap().to_string().as_str(), stringify_data.clone().as_str());
 
         let verification_result = Wallet::verify_secp256r1_signature(&signature_hex.clone().unwrap(), contract.wallet.secp256r1_public_key.as_ref().unwrap().as_str());
 
@@ -566,9 +574,9 @@ pub mod tests{
         let contract = Contract::new_with_secp256k1("0xDE6D7045Df57346Ec6A70DfE1518Ae7Fe61113f4", "wildonion123");
         Wallet::save_to_json(&contract.wallet, "secp256k1").unwrap();
 
-        let signature = Wallet::secp256k1_sign(contract.wallet.secp256k1_secret_key.as_ref().unwrap().to_string(), stringify_data.clone());
+        let signature = Wallet::secp256k1_sign(contract.wallet.secp256k1_secret_key.as_ref().unwrap().to_string().as_str(), stringify_data.clone().as_str());
 
-        let pubkey = Wallet::generate_secp256k1_pubkey_from(contract.wallet.secp256k1_public_key.as_ref().unwrap().to_string());
+        let pubkey = Wallet::generate_secp256k1_pubkey_from(contract.wallet.secp256k1_public_key.as_ref().unwrap().to_string().as_str());
 
         let keypair = Wallet::retrieve_secp256k1_keypair(
             /* 
@@ -582,7 +590,7 @@ pub mod tests{
         match pubkey{
             Ok(pk) => {
                 
-                let verification_result = Wallet::verify_secp256k1_signature(stringify_data, signature, pk);
+                let verification_result = Wallet::verify_secp256k1_signature(stringify_data.as_str(), signature.to_string().as_str(), pk);
                 match verification_result{
                     Ok(_) => {
                         
