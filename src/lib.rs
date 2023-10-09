@@ -1,32 +1,28 @@
 
 
 
-use sha2::{Digest, Sha256};
+use web3::types::SignedData;
 use std::io::{BufWriter, Write, Read};
 use ring::{signature as ring_signature, rand as ring_rand};
 use ring::signature::Ed25519KeyPair;
-use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
-use ring::{signature::KeyPair, pkcs8::Document};
+use ring::signature::KeyPair;
 use secp256k1::Secp256k1;
 use secp256k1::ecdsa::Signature;
 use secp256k1::{rand::SeedableRng, rand::rngs::StdRng, PublicKey, SecretKey, Message, hashes::sha256};
 use tiny_keccak::keccak256;
 use std::str::FromStr;
-use std::{fs::OpenOptions, io::BufReader};
 use web3::{ /* a crate to interact with evm based chains */
     transports,
-    types::{Address, TransactionParameters, H256, U256},
+    types::Address,
     Web3,
 };
-use themis::keys as themis_keys;
 use themis::secure_message::{SecureSign, SecureVerify};
 use themis::keygen::gen_ec_key_pair;
-use themis::keys::{EcdsaKeyPair, EcdsaPrivateKey, EcdsaPublicKey};
+use themis::keys::{EcdsaPrivateKey, EcdsaPublicKey};
 use themis::keys::KeyPair as ThemisKeyPair;
 use secp256k1::hashes::Hash;
 use bip39::{Language, Mnemonic, MnemonicType, Seed};
-
 
 
 /* 
@@ -39,8 +35,6 @@ fn string_to_static_str(s: String) -> &'static str {
 
 
 
-
-
 /* 
      ---------------------------------------------------------------------
     |   RSA (Asymmetric) Crypto Wallet Implementations using ECC Curves
@@ -48,7 +42,7 @@ fn string_to_static_str(s: String) -> &'static str {
     |
     |       CURVES
     | ed25519   -> EdDSA                                                    ::::::: ring
-    | secp256k1 -> EC (can be imported in EVM based wallets like metamask)  ::::::: web3
+    | secp256k1 -> EC (can be imported in EVM based wallets like metamask)  ::::::: secp256k1
     | secp256r1 -> ECDSA                                                    ::::::: themis
     |
     |       ENTROPY
@@ -62,6 +56,92 @@ fn string_to_static_str(s: String) -> &'static str {
 */
 
 
+
+pub mod evm{
+
+    use super::*;
+
+    pub async fn sign(wallet: Wallet, data: &str, infura_url: &str) -> (SignedData, String){
+
+        let transport = transports::WebSocket::new(infura_url).await.unwrap();
+        let web3_con = Web3::new(transport);
+    
+        /* generating secret key instance from secp256k1 secret key */
+        let web3_sec = web3::signing::SecretKey::from_str(wallet.secp256k1_secret_key.as_ref().unwrap().as_str()).unwrap();
+        let keccak256_hash_of_message = web3_con.accounts().hash_message(data.to_string().as_bytes());
+        println!("web3 keccak256 hash of message {:?}", keccak256_hash_of_message); 
+    
+        /* comparing the secp256k1 keypair with the web3 keypair */
+        let secp = Secp256k1::default();
+        println!("web3 secret key from secp256k1 {:?}", web3_sec.display_secret()); 
+        println!("secp256k1 secret key {:?}", wallet.secp256k1_secret_key.as_ref().unwrap().as_str()); 
+        println!("web3 pub key from secp256k1 {:?}", web3_sec.public_key(&secp));
+        println!("secp256k1 pub key {:?}", web3_sec.public_key(&secp));
+    
+        /* signing the keccak256 hash of data */
+        let signed_data = web3_con.accounts().sign(
+            keccak256_hash_of_message, 
+            &web3_sec
+        );
+    
+        /* getting signature of the signed data */
+        // signature bytes schema: pub struct Bytes(pub Vec<u8>);
+        let sig_bytes = signed_data.signature.0.as_slice();
+        let sig_str = hex::encode(sig_bytes);
+        println!("web3 hex signature :::: {}", sig_str);
+
+        /* 
+            signature is a 520 bits or 65 bytes string which has 
+            130 hex chars inside of it and can be divided into 
+            two 256 bits or 32 bytes packs of hex string namely as
+            r and s.
+        */
+        let signature = web3::types::H520::from_str(sig_str.as_str()).unwrap(); /* 64 bytes signature */
+        println!("web3 signature :::: {}", signature);
+        
+        let hex_keccak256_hash_of_message = hex::encode(keccak256_hash_of_message.0).to_string();
+        (signed_data, hex_keccak256_hash_of_message)
+    
+    }
+
+    pub async fn verify(
+        sender: &str,
+        sig: &str,
+        data_hash: &str,
+        infura_url: &str
+    ) -> Result<bool, bool>{
+    
+        let transport = transports::WebSocket::new(infura_url).await.unwrap();
+        let web3_con = Web3::new(transport);
+    
+        /* recovering public address from signature and keccak256 bits hash of the message */
+        let data_hash = match hex::decode(data_hash){
+            Ok(hash) => hash,
+            Err(e) => return Err(false),
+        };
+        let rec_msg = web3::types::RecoveryMessage::Data(data_hash.clone());
+
+        /* signature is a 65 bytes or 520 bits hex string contains 64 bytes of r + s (32 byte each) and a byte in the last which is v */
+        let rec = web3::types::Recovery::from_raw_signature(rec_msg, hex::decode(sig).unwrap()).unwrap();
+        
+        println!("web3 recovery object {:?}", rec);
+        
+        /* recovers the EVM based public address or screen_cid which was used to sign the given data */
+        if web3_con.accounts().recover(rec.clone()).is_err(){
+            return Err(false);
+        }
+        let recovered_screen_cidh160 = web3_con.accounts().recover(rec).unwrap().to_fixed_bytes();
+        let recovered_screen_cid_hex = format!("0x{}", hex::encode(&recovered_screen_cidh160));
+    
+        if sender == recovered_screen_cid_hex{
+            Ok(true)
+        } else{
+            Err(false)
+        }
+    
+    }
+
+}
 
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
 pub struct DataBucket{
@@ -417,6 +497,7 @@ impl Wallet{
     
 }
 
+#[derive(Serialize, Deserialize, Clone, Debug, Default)]
 pub struct Contract{
     pub wallet: Wallet,
     pub iat: i64,
@@ -624,6 +705,50 @@ pub mod tests{
             Err(e) => Err(e)
         }
 
+
+    }
+
+    #[tokio::test]
+    pub async fn test_evm(){
+
+        /* 
+            ECDSA with secp256k1 curve keypairs 
+            (compatible with all evm based chains) 
+        */
+        let wallet = Wallet::new_secp256k1("");
+
+        let data_to_be_signed = serde_json::json!({
+            "recipient": "deadkings",
+            "from_cid": wallet.secp256k1_public_address.as_ref().unwrap(),
+            "amount": 5
+        });
+
+        let sign_res = self::evm::sign(
+            wallet.clone(), 
+            data_to_be_signed.to_string().as_str(),
+            ""
+        ).await;
+
+        let signed_data = sign_res.0;
+
+        println!("sig :::: {}", hex::encode(&signed_data.signature.0));
+        println!("v :::: {}", signed_data.v);
+        println!("r :::: {}", hex::encode(&signed_data.r.0));
+        println!("s :::: {}", hex::encode(&signed_data.s.0));
+        println!("hash data :::: {}", sign_res.1);
+
+        let verification_res = self::evm::verify(
+            wallet.secp256k1_public_address.as_ref().unwrap(),
+            hex::encode(&signed_data.signature.0).as_str(),
+            sign_res.1.as_str(),
+            ""
+        ).await;
+        
+        if verification_res.is_ok(){
+            println!("✅ valid signature");
+        } else{
+            eprintln!("🔴 invalid signature");
+        }
 
     }
  
