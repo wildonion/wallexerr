@@ -23,6 +23,7 @@ use themis::keys::{EcdsaPrivateKey, EcdsaPublicKey};
 use themis::keys::KeyPair as ThemisKeyPair;
 use secp256k1::hashes::Hash;
 use bip39::{Language, Mnemonic, MnemonicType, Seed};
+use base64::{engine::general_purpose, Engine as _};
 
 
 /* 
@@ -186,9 +187,17 @@ impl Wallet{
         let pubkey = keys.public_key().as_ref();
         let prvkey = pkcs8_bytes.as_ref();
 
-        /* converting bytes to hex string */
-        let pubkey_string = hex::encode(&pubkey);
-        let prvkey_string  = hex::encode(&prvkey);
+        /*              -------------- converting bytes to base64 string --------------
+            URL-Safe: Base64 encoding usually makes use of + and / characters, which aren't safe for 
+                      URLs since they have special meanings. The URL-safe variant replaces + with - and 
+                      / with _ to avoid these issues.
+            No Padding: Traditional Base64 encoding can end with one or two = characters as padding. 
+                      With the NO_PAD option, this padding is omitted. It's a variant that's useful 
+                      for situations where padding isn't necessary or where it's important to reduce 
+                      the size of the Base64-encoded data.
+        */
+        let base64_pubkey_string = general_purpose::URL_SAFE_NO_PAD.encode(pubkey);
+        let base64_prvkey_string = general_purpose::URL_SAFE_NO_PAD.encode(prvkey);
 
         let wallet = Wallet{
             secp256k1_secret_key: None,
@@ -197,8 +206,8 @@ impl Wallet{
             secp256k1_mnemonic: None,
             secp256r1_public_key: None,
             secp256r1_secret_key: None,
-            ed25519_public_key: Some(pubkey_string),
-            ed25519_secret_key: Some(prvkey_string)
+            ed25519_public_key: Some(base64_pubkey_string),
+            ed25519_secret_key: Some(base64_prvkey_string)
         };
 
         wallet
@@ -275,7 +284,9 @@ impl Wallet{
             the hex string itself into bytes and it doesn't return the acutal bytes
         */
         let sig_bytes = hex::decode(&sig).unwrap();
-        let pubkey_bytes = hex::decode(pubkey).unwrap();
+
+        /* decoding the base64 public key to get the actual bytes */
+        let pubkey_bytes = general_purpose::URL_SAFE_NO_PAD.decode(pubkey).unwrap();
 
         /* generating sha25 bits hash of data */
         let hash_data_bytes = Self::generate_sha256_from(data);
@@ -297,13 +308,9 @@ impl Wallet{
 
     pub fn retrieve_ed25519_keypair(prv_key: &str) -> Ed25519KeyPair{
 
-        /* 
-            since prv_key is a hex string we have to get its bytes using 
-            hex::decode() cause calling .as_bytes() on the hex string converts
-            the hex string itself into bytes and it doesn't return the acutal bytes
-        */
-        let private_key = hex::decode(prv_key).unwrap();
-        let generated_ed25519_keys = Ed25519KeyPair::from_pkcs8(private_key.as_ref()).unwrap();
+        /* decoding the base64 private key to get the actual bytes */
+        let prvkey_bytes = general_purpose::URL_SAFE_NO_PAD.decode(prv_key).unwrap();
+        let generated_ed25519_keys = Ed25519KeyPair::from_pkcs8(&prvkey_bytes).unwrap();
         generated_ed25519_keys
 
     }
