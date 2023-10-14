@@ -1,6 +1,6 @@
 [package]
 name = "wallexerr"
-version = "0.1.9"
+version = "0.2"
 edition = "2021"
 authors = ["wildonion <abarmardeatashyne@gmail.com>"]
 description = "Crypto Contract Wallets"

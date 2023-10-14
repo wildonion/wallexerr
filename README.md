@@ -12,7 +12,7 @@
 
 > refer to https://docs.cossacklabs.com/themis/installation/installation-from-packages/ if you don't want to build themis from source.
 
-> wallet infos are inside `wallet` folder.
+> wallet infos are inside `wallexerr-keys` folder in the root of the project.
 
 > refer to `themis-wasm` to see how to use themis inside js.
 

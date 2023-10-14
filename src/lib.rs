@@ -463,13 +463,15 @@ impl Wallet{
 
         /* 
             creating mnemonic words as the seed phrases for deriving secret keys, by doing this
-            we're creating a 64 bytes or 256 bits entropy from the seed phrases to construct the 
-            keypair, with a same seed we'll get same keypair every time thus we can generate a 
-            secret words to generate keypair for the wallet owner and by recovering the seed phrase 
-            wen can recover the entire wallet.
+            we're creating a 64 bytes or 512 bits entropy to construct the keypair, with a same 
+            seed we'll get same keypair every time thus we can generate a secret words to generate 
+            keypair for the wallet owner and by recovering the seed phrase wen can recover 
+            the entire wallet.
         */
         let mnemoni_type = MnemonicType::for_word_count(12).unwrap();
         let mnemonic = Mnemonic::new(mnemoni_type, Language::English);
+        
+        /* generating seed from the password and generated menmonic */
         let bip_seed_phrases = Seed::new(&mnemonic, passphrase);
         
         /* 
@@ -478,6 +480,8 @@ impl Wallet{
         */
         let hash_data = sha256::Hash::hash(bip_seed_phrases.as_bytes());
         let hash_data_bytes = hash_data.as_byte_array();
+
+        /* we'll use the sha256 hash of the seed to generate the keypair */
         let seed_bytes = hash_data_bytes.to_owned();
 
         (seed_bytes, mnemonic.to_string())
@@ -486,9 +490,9 @@ impl Wallet{
 
     pub fn save_to_json(wallet: &Wallet, _type: &str) -> Result<(), ()>{
 
-        let walletdir = std::fs::create_dir_all("wallet").unwrap();
+        let walletdir = std::fs::create_dir_all("wallexerr-keys").unwrap();
         let errordir = std::fs::create_dir_all("logs").unwrap();
-        let walletpath = format!("wallet/{_type:}.json");  
+        let walletpath = format!("wallexerr-keys/{_type:}.json");  
         let errorpath = format!("logs/error.log");  
         let mut file = std::fs::File::create(walletpath).unwrap();
         let mut filelog = std::fs::File::create(errorpath).unwrap();
