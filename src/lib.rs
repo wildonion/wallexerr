@@ -9,19 +9,19 @@ use serde::{Deserialize, Serialize};
 use ring::signature::KeyPair;
 use secp256k1::Secp256k1;
 use secp256k1::ecdsa::Signature;
-use secp256k1::{rand::SeedableRng, rand::rngs::StdRng, PublicKey, SecretKey, Message, hashes::sha256};
-use tiny_keccak::keccak256;
+use sha2::{Sha256, Digest};
+use secp256k1::{rand::SeedableRng, rand::rngs::StdRng, PublicKey, SecretKey, Message};
 use std::str::FromStr;
 use web3::{ /* a crate to interact with evm based chains */
     transports,
     types::Address,
     Web3,
+    signing::keccak256
 };
 use themis::secure_message::{SecureSign, SecureVerify};
 use themis::keygen::gen_ec_key_pair;
 use themis::keys::{EcdsaPrivateKey, EcdsaPublicKey};
 use themis::keys::KeyPair as ThemisKeyPair;
-use secp256k1::hashes::Hash;
 use bip39::{Language, Mnemonic, MnemonicType, Seed};
 use base64::{engine::general_purpose, Engine as _};
 
@@ -71,13 +71,6 @@ pub mod evm{
         let web3_sec = web3::signing::SecretKey::from_str(wallet.secp256k1_secret_key.as_ref().unwrap().as_str()).unwrap();
         let keccak256_hash_of_message = web3_con.accounts().hash_message(data.to_string().as_bytes());
         println!("web3 keccak256 hash of message {:?}", keccak256_hash_of_message); 
-    
-        /* comparing the secp256k1 keypair with the web3 keypair */
-        let secp = Secp256k1::default();
-        println!("web3 secret key from secp256k1 {:?}", web3_sec.display_secret()); 
-        println!("secp256k1 secret key {:?}", wallet.secp256k1_secret_key.as_ref().unwrap().as_str()); 
-        println!("web3 pub key from secp256k1 {:?}", web3_sec.public_key(&secp));
-        println!("secp256k1 pub key {:?}", web3_sec.public_key(&secp));
     
         /* signing the keccak256 hash of data */
         let signed_data = web3_con.accounts().sign(
@@ -169,8 +162,8 @@ impl Wallet{
 
         let pubk = PublicKey::from_str(&pubk).unwrap();
         let public_key = pubk.serialize_uncompressed();
-        let hash = keccak256(&public_key[1..]);
-        let addr: Address = Address::from_slice(&hash[12..]);
+        let pubhash = keccak256(&public_key[1..]);
+        let addr: Address = Address::from_slice(&pubhash[12..]);
         let addr_bytes = addr.as_bytes();
         let addr_string = format!("0x{}", hex::encode(&addr_bytes));
         addr_string
@@ -268,22 +261,22 @@ impl Wallet{
         let hash_data_bytes = Self::generate_sha256_from(data);
 
         let ed25519 = Self::retrieve_ed25519_keypair(prvkey);
-
+        
         /* signing the hashed data */
         let signature = ed25519.sign(&hash_data_bytes);
         let sig = signature.as_ref().to_vec();
-        Some(hex::encode(&sig))
+
+        /* generating base64 string of the signature */
+        let base64_prvkey_string = general_purpose::URL_SAFE_NO_PAD.encode(&sig);
+        
+        Some(base64_prvkey_string)
 
     }
 
     pub fn verify_ed25519_signature(sig: &str, data: &str, pubkey: &str) -> Result<(), ring::error::Unspecified>{
 
-        /* 
-            since sig and pubkey are hex string we have to get their bytes using 
-            hex::decode() cause calling .as_bytes() on the hex string converts
-            the hex string itself into bytes and it doesn't return the acutal bytes
-        */
-        let sig_bytes = hex::decode(&sig).unwrap();
+        /* decoding the base64 sig to get the actual bytes */
+        let sig_bytes = general_purpose::URL_SAFE_NO_PAD.decode(sig).unwrap();
 
         /* decoding the base64 public key to get the actual bytes */
         let pubkey_bytes = general_purpose::URL_SAFE_NO_PAD.decode(pubkey).unwrap();
@@ -326,14 +319,15 @@ impl Wallet{
             data is required to be passed to the method since we'll compare
             the hash of it with the one inside the signature 
         */
-        let data_bytes = data.as_bytes();
-        let hashed_data = Message::from_hashed_data::<sha256::Hash>(data_bytes);
+        let hashed_data = Self::generate_sha256_from(data);
+        let hashed_message = Message::from_digest(hashed_data);
+
         let sig = Signature::from_str(sig).unwrap();
         let pubkey = PublicKey::from_str(pk).unwrap();
             
         /* message is an sha256 bits hashed data */
         let secp = Secp256k1::verification_only();
-        secp.verify_ecdsa(&hashed_data, &sig, &pubkey)
+        secp.verify_ecdsa(&hashed_message, &sig, &pubkey)
 
     }
 
@@ -344,12 +338,13 @@ impl Wallet{
             the hash of it with the one inside the signature 
         */
         let data_bytes = data.as_bytes();
-        let hashed_data = Message::from_hashed_data::<sha256::Hash>(data_bytes);
+        let hashed_data = Self::generate_sha256_from(data);
+        let hashed_message = Message::from_digest(hashed_data);
         let sig = Signature::from_str(sig).unwrap();
             
         /* message is an sha256 bits hashed data */
         let secp = Secp256k1::verification_only();
-        secp.verify_ecdsa(&hashed_data, &sig, &pk)
+        secp.verify_ecdsa(&hashed_message, &sig, &pk)
 
     }
 
@@ -372,13 +367,14 @@ impl Wallet{
 
         let secret_key = SecretKey::from_str(signer).unwrap();
         let data_bytes = data.as_bytes();
-        let hashed_data = Message::from_hashed_data::<sha256::Hash>(data_bytes);
+        let hashed_data = Self::generate_sha256_from(data);
+        let hashed_message = Message::from_digest(hashed_data);
         
         /* message is an sha256 bits hashed data */
         let secp = Secp256k1::new();
 
         /* signing the hashed data */
-        secp.sign_ecdsa(&hashed_data, &secret_key)
+        secp.sign_ecdsa(&hashed_message, &secret_key)
 
     }
 
@@ -452,16 +448,23 @@ impl Wallet{
     pub fn generate_sha256_from(data: &str) -> [u8; 32]{
 
         /* generating sha25 bits hash of data */
-        let data_bytes = data.as_bytes();
-        let hash_data = sha256::Hash::hash(data_bytes);
-        let hash_data_bytes = hash_data.as_byte_array();
-        hash_data_bytes.to_owned()
+        let mut hasher = Sha256::new();
+        hasher.update(data.as_bytes());
+        let hash_data = hasher.finalize();
+        let hash_data_bytes = hash_data;
+        hash_data_bytes.into()
 
     }
 
     fn generate_seed_phrases(passphrase: &str) -> ([u8; 32], String){
 
         /* 
+
+            1 - create mnemonic words
+            2 - create seed from mnemonic and password
+            3 - sha256 bits hash of generated mnemonic based seed
+            4 - generate rng based on output of step 3
+
             creating mnemonic words as the seed phrases for deriving secret keys, by doing this
             we're creating a 64 bytes or 512 bits entropy to construct the keypair, with a same 
             seed we'll get same keypair every time thus we can generate a secret words to generate 
@@ -478,8 +481,11 @@ impl Wallet{
             generating a 32 bytes hash of the bip_seed_phrases using sha256 we're doing this
             because StdRng::from_seed() takes 32 bytes seed to generate the rng 
         */
-        let hash_data = sha256::Hash::hash(bip_seed_phrases.as_bytes());
-        let hash_data_bytes = hash_data.as_byte_array();
+        /* generating sha25 bits hash of data */
+        let mut hasher = Sha256::new();
+        hasher.update(bip_seed_phrases.as_bytes());
+        let hash_data = hasher.finalize();
+        let hash_data_bytes: [u8; 32] = hash_data.into();
 
         /* we'll use the sha256 hash of the seed to generate the keypair */
         let seed_bytes = hash_data_bytes.to_owned();
@@ -737,7 +743,7 @@ pub mod tests{
         let sign_res = self::evm::sign(
             wallet.clone(), 
             data_to_be_signed.to_string().as_str(),
-            ""
+            "" /* Fill Me! */
         ).await;
 
         let signed_data = sign_res.0;
@@ -752,7 +758,7 @@ pub mod tests{
             wallet.secp256k1_public_address.as_ref().unwrap(),
             hex::encode(&signed_data.signature.0).as_str(),
             sign_res.1.as_str(),
-            ""
+            "" /* Fill Me! */
         ).await;
         
         if verification_res.is_ok(){

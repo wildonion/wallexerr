@@ -1,8 +1,8 @@
 {
-  "secp256k1_secret_key": "238092d1dd33721c688e35b4cc0036ca6e07e621661d2ac847945464da4acb86",
-  "secp256k1_public_key": "034850b12aafad341bc2bda3420be1fb4de808a9b3ac7126c1c87e3d9d2ccd69fc",
-  "secp256k1_public_address": "0xa3d9c01924a73a9bed20f5f6d21e82cf59338643",
-  "secp256k1_mnemonic": "outside awkward card artist jeans detect eyebrow quote payment guard ozone math",
+  "secp256k1_secret_key": "95858034f26463cb97b933515db86f626c1347ec0b46ca6c3c375fab2cc70a46",
+  "secp256k1_public_key": "02439fdb3fabd23eaaf011e4fafd613fa70f9f2b5f1dc7d119d3e4948cbb8ba556",
+  "secp256k1_public_address": "0x5bb29a509f4a5be61d550be031d324bb8efd1f3b",
+  "secp256k1_mnemonic": "copy smoke purse banana clarify latin bread notice pride mechanic shadow load",
   "secp256r1_secret_key": null,
   "secp256r1_public_key": null,
   "ed25519_secret_key": null,
