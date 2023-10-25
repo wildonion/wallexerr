@@ -1,8 +1,8 @@
 {
-  "secp256k1_secret_key": "95858034f26463cb97b933515db86f626c1347ec0b46ca6c3c375fab2cc70a46",
-  "secp256k1_public_key": "02439fdb3fabd23eaaf011e4fafd613fa70f9f2b5f1dc7d119d3e4948cbb8ba556",
-  "secp256k1_public_address": "0x5bb29a509f4a5be61d550be031d324bb8efd1f3b",
-  "secp256k1_mnemonic": "copy smoke purse banana clarify latin bread notice pride mechanic shadow load",
+  "secp256k1_secret_key": "37732eca7db2810f3232e6644696389390967665ca7024e8198dc7e5b660680e",
+  "secp256k1_public_key": "0340ff00d5dfe3d57cb9b1e6f01319eecd745ddf098ca58e8ae8328db934abe305",
+  "secp256k1_public_address": "0x35cb9b45294b840c3e4093f808e965bbbdb435b8",
+  "secp256k1_mnemonic": "gorilla shuffle merry two day modify bottom music size possible repair enter",
   "secp256r1_secret_key": null,
   "secp256r1_public_key": null,
   "ed25519_secret_key": null,

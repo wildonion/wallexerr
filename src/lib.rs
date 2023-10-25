@@ -34,6 +34,9 @@ fn string_to_static_str(s: String) -> &'static str {
     Box::leak(s.into_boxed_str()) 
 }
 
+fn convert_into_u8_32(data: &[u8]) -> Option<[u8; 32]>{
+    data.try_into().ok()
+}
 
 
 /* 
@@ -273,16 +276,19 @@ impl Wallet{
 
     }
 
-    pub fn verify_ed25519_signature(sig: &str, data: &str, pubkey: &str) -> Result<(), ring::error::Unspecified>{
+    /* 
+        for security reasons we must verify the hash of data against the signature 
+        the sha256 hash of data must be passed from client to this function, we 
+        can't hash the raw data in this method, so data is alrady the sha256 
+        hash of real data
+    */
+    pub fn verify_ed25519_signature(sig: &str, hash_data_bytes: &[u8], pubkey: &str) -> Result<(), ring::error::Unspecified>{
 
         /* decoding the base64 sig to get the actual bytes */
         let sig_bytes = general_purpose::URL_SAFE_NO_PAD.decode(sig).unwrap();
 
         /* decoding the base64 public key to get the actual bytes */
         let pubkey_bytes = general_purpose::URL_SAFE_NO_PAD.decode(pubkey).unwrap();
-
-        /* generating sha25 bits hash of data */
-        let hash_data_bytes = Self::generate_sha256_from(data);
 
         /* creating the public key  */
         let ring_pubkey = ring_signature::UnparsedPublicKey::new(
@@ -313,14 +319,17 @@ impl Wallet{
         secp256k1_pubkey
     }
 
-    pub fn verify_secp256k1_signature_from_pubkey_str(data: &str, sig: &str, pk: &str) -> Result<(), secp256k1::Error>{
+    /* 
+        for security reasons we must verify the hash of data against the signature 
+        the sha256 hash of data must be passed from client to this function, we 
+        can't hash the raw data in this method, so data is alrady the sha256 
+        hash of real data
+    */
+    pub fn verify_secp256k1_signature_from_pubkey_str(data: &[u8], sig: &str, pk: &str) -> Result<(), secp256k1::Error>{
 
-        /* 
-            data is required to be passed to the method since we'll compare
-            the hash of it with the one inside the signature 
-        */
-        let hashed_data = Self::generate_sha256_from(data);
-        let hashed_message = Message::from_digest(hashed_data);
+        /* data is alrady the sha256 hash of real data */
+        let hash_data_bytes = convert_into_u8_32(data).unwrap();
+        let hashed_message = Message::from_digest(hash_data_bytes);
 
         let sig = Signature::from_str(sig).unwrap();
         let pubkey = PublicKey::from_str(pk).unwrap();
@@ -331,15 +340,17 @@ impl Wallet{
 
     }
 
-    pub fn verify_secp256k1_signature_from_pubkey(data: &str, sig: &str, pk: PublicKey) -> Result<(), secp256k1::Error>{
+    /* 
+        for security reasons we must verify the hash of data against the signature 
+        the sha256 hash of data must be passed from client to this function, we 
+        can't hash the raw data in this method, so data is alrady the sha256 
+        hash of real data
+    */
+    pub fn verify_secp256k1_signature_from_pubkey(data: &[u8], sig: &str, pk: PublicKey) -> Result<(), secp256k1::Error>{
 
-        /* 
-            data is required to be passed to the method since we'll compare
-            the hash of it with the one inside the signature 
-        */
-        let data_bytes = data.as_bytes();
-        let hashed_data = Self::generate_sha256_from(data);
-        let hashed_message = Message::from_digest(hashed_data);
+        /* data is alrady the sha256 hash of real data */
+        let hash_data_bytes = convert_into_u8_32(data).unwrap();
+        let hashed_message = Message::from_digest(hash_data_bytes);
         let sig = Signature::from_str(sig).unwrap();
             
         /* message is an sha256 bits hashed data */
@@ -595,8 +606,9 @@ pub mod tests{
         Wallet::save_to_json(&contract.wallet, "ed25519").unwrap();
         
         let signature_hex = Wallet::ed25519_sign(stringify_data.clone().as_str(), contract.wallet.ed25519_secret_key.as_ref().unwrap().as_str());
-        
-        let verify_res = Wallet::verify_ed25519_signature(signature_hex.clone().unwrap().as_str(), stringify_data.as_str(), contract.wallet.ed25519_public_key.unwrap().as_str());
+
+        let hash_of_data = Wallet::generate_sha256_from(&stringify_data);
+        let verify_res = Wallet::verify_ed25519_signature(signature_hex.clone().unwrap().as_str(), hash_of_data.as_slice(), contract.wallet.ed25519_public_key.unwrap().as_str());
 
         let keypair = Wallet::retrieve_ed25519_keypair(
             /* 
@@ -705,7 +717,8 @@ pub mod tests{
         match pubkey{
             Ok(pk) => {
                 
-                let verification_result = Wallet::verify_secp256k1_signature_from_pubkey(stringify_data.as_str(), signature.to_string().as_str(), pk);
+                let hash_of_data = Wallet::generate_sha256_from(&stringify_data);
+                let verification_result = Wallet::verify_secp256k1_signature_from_pubkey(hash_of_data.as_slice(), signature.to_string().as_str(), pk);
                 match verification_result{
                     Ok(_) => {
                         
@@ -743,7 +756,7 @@ pub mod tests{
         let sign_res = self::evm::sign(
             wallet.clone(), 
             data_to_be_signed.to_string().as_str(),
-            "" /* Fill Me! */
+            "" /******* TODO - Fill Me! *******/
         ).await;
 
         let signed_data = sign_res.0;
@@ -758,7 +771,7 @@ pub mod tests{
             wallet.secp256k1_public_address.as_ref().unwrap(),
             hex::encode(&signed_data.signature.0).as_str(),
             sign_res.1.as_str(),
-            "" /* Fill Me! */
+            "" /******* TODO - Fill Me! *******/
         ).await;
         
         if verification_res.is_ok(){
