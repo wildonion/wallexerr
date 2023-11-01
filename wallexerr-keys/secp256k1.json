@@ -1,8 +1,8 @@
 {
-  "secp256k1_secret_key": "37732eca7db2810f3232e6644696389390967665ca7024e8198dc7e5b660680e",
-  "secp256k1_public_key": "0340ff00d5dfe3d57cb9b1e6f01319eecd745ddf098ca58e8ae8328db934abe305",
-  "secp256k1_public_address": "0x35cb9b45294b840c3e4093f808e965bbbdb435b8",
-  "secp256k1_mnemonic": "gorilla shuffle merry two day modify bottom music size possible repair enter",
+  "secp256k1_secret_key": "50e46f5143f0b1d80f31a717ee5560b5c02797d74ef50d18038d08f8ffc21faf",
+  "secp256k1_public_key": "0342e0ca487c565e27fe6bd51ca064670fb72ab592f74b027c6afd8d3078d2965c",
+  "secp256k1_public_address": "0xf98f17fd7b6e68d89d2f90c89e534e9d5784919e",
+  "secp256k1_mnemonic": "egg energy damp depth choice nut reform bachelor shop music tomorrow sign",
   "secp256r1_secret_key": null,
   "secp256r1_public_key": null,
   "ed25519_secret_key": null,

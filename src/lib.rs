@@ -24,6 +24,7 @@ use themis::keys::{EcdsaPrivateKey, EcdsaPublicKey};
 use themis::keys::KeyPair as ThemisKeyPair;
 use bip39::{Language, Mnemonic, MnemonicType, Seed};
 use base64::{engine::general_purpose, Engine as _};
+use base58::{ToBase58, FromBase58};
 
 
 /* 
@@ -34,10 +35,10 @@ fn string_to_static_str(s: String) -> &'static str {
     Box::leak(s.into_boxed_str()) 
 }
 
+/* converting an slice array of u8 bytes into an array with 32 byte length */
 fn convert_into_u8_32(data: &[u8]) -> Option<[u8; 32]>{
     data.try_into().ok()
 }
-
 
 /* 
      ---------------------------------------------------------------------
@@ -49,8 +50,7 @@ fn convert_into_u8_32(data: &[u8]) -> Option<[u8; 32]>{
     | secp256k1 -> EC (can be imported in EVM based wallets like metamask)  ::::::: secp256k1
     | secp256r1 -> ECDSA                                                    ::::::: themis
     |
-    |       ENTROPY
-    | BIP39 SEED PHRASES
+    |  secp256k1 ENTROPY: BIP39 SEED PHRASES
     |
 
     https://github.com/skerkour/black-hat-rust/tree/main/ch_11
@@ -175,7 +175,10 @@ impl Wallet{
 
     pub fn new_ed25519() -> Self{
 
+        /* generating an rng with high entropy */
         let rng = ring_rand::SystemRandom::new();
+
+        /* generating ed25519 keypair */
         let pkcs8_bytes = ring_signature::Ed25519KeyPair::generate_pkcs8(&rng).unwrap();
         let keys = ring_signature::Ed25519KeyPair::from_pkcs8(pkcs8_bytes.as_ref()).unwrap();
 
@@ -195,6 +198,15 @@ impl Wallet{
         let base64_pubkey_string = general_purpose::URL_SAFE_NO_PAD.encode(pubkey);
         let base64_prvkey_string = general_purpose::URL_SAFE_NO_PAD.encode(prvkey);
 
+
+        /*             -------------- converting bytes to base۵۸ string --------------
+            by default ToBase58 and FromBase58 traits are implemented for 
+            [u8] so by importing them in here we can call the to_base58()
+            on &[u8] and from_base58() on String 
+        */
+        let base58_pubkey_string = pubkey.to_base58();
+        let base58_prvkey_string = prvkey.to_base58();
+
         let wallet = Wallet{
             secp256k1_secret_key: None,
             secp256k1_public_key: None,
@@ -202,18 +214,25 @@ impl Wallet{
             secp256k1_mnemonic: None,
             secp256r1_public_key: None,
             secp256r1_secret_key: None,
-            ed25519_public_key: Some(base64_pubkey_string),
-            ed25519_secret_key: Some(base64_prvkey_string)
+            ed25519_public_key: Some(base58_pubkey_string),
+            ed25519_secret_key: Some(base58_prvkey_string)
         };
 
         wallet
 
     }
     
-    pub fn new_secp256k1(passphrase: &str) -> Self{
+    pub fn new_secp256k1(passphrase: &str, mnemonic: Option<&str>) -> Self{
 
-        let seed_mnemonic = Self::generate_seed_phrases(passphrase);
-        let rng = &mut StdRng::from_seed(seed_mnemonic.0);
+        let seed_mnemonic_bytes_and_string = Self::generate_seed_phrases(passphrase);
+        let seed_mnemonic_hash_bytes = if mnemonic.is_some(){
+            Self::generate_sha256_from(mnemonic.unwrap())
+        } else{
+            seed_mnemonic_bytes_and_string.0
+        };
+
+        /* generate rng from hash of the seed phrase */
+        let rng = &mut StdRng::from_seed(seed_mnemonic_hash_bytes); 
         
         /* since the secp is going to be built from an specific seed thus the generated keypair will be the same everytime we request a new one */
         let secp = secp256k1::Secp256k1::new();
@@ -224,7 +243,7 @@ impl Wallet{
             secp256k1_secret_key: Some(prv_str), /* (compatible with all evm based chains) */
             secp256k1_public_key: Some(pubk.to_string()),
             secp256k1_public_address: Some(Self::generate_keccak256_from(pubk.to_string())),
-            secp256k1_mnemonic: Some(seed_mnemonic.1),
+            secp256k1_mnemonic: Some(seed_mnemonic_bytes_and_string.1),
             secp256r1_public_key: None,
             secp256r1_secret_key: None,
             ed25519_public_key: None,
@@ -270,9 +289,9 @@ impl Wallet{
         let sig = signature.as_ref().to_vec();
 
         /* generating base64 string of the signature */
-        let base64_prvkey_string = general_purpose::URL_SAFE_NO_PAD.encode(&sig);
+        let base58_sig_string = sig.to_base58();
         
-        Some(base64_prvkey_string)
+        Some(base58_sig_string)
 
     }
 
@@ -285,10 +304,10 @@ impl Wallet{
     pub fn verify_ed25519_signature(sig: &str, hash_data_bytes: &[u8], pubkey: &str) -> Result<(), ring::error::Unspecified>{
 
         /* decoding the base64 sig to get the actual bytes */
-        let sig_bytes = general_purpose::URL_SAFE_NO_PAD.decode(sig).unwrap();
+        let sig_bytes = sig.from_base58().unwrap();
 
         /* decoding the base64 public key to get the actual bytes */
-        let pubkey_bytes = general_purpose::URL_SAFE_NO_PAD.decode(pubkey).unwrap();
+        let pubkey_bytes = pubkey.from_base58().unwrap();
 
         /* creating the public key  */
         let ring_pubkey = ring_signature::UnparsedPublicKey::new(
@@ -308,7 +327,7 @@ impl Wallet{
     pub fn retrieve_ed25519_keypair(prv_key: &str) -> Ed25519KeyPair{
 
         /* decoding the base64 private key to get the actual bytes */
-        let prvkey_bytes = general_purpose::URL_SAFE_NO_PAD.decode(prv_key).unwrap();
+        let prvkey_bytes = prv_key.from_base58().unwrap();
         let generated_ed25519_keys = Ed25519KeyPair::from_pkcs8(&prvkey_bytes).unwrap();
         generated_ed25519_keys
 
@@ -377,7 +396,6 @@ impl Wallet{
     pub fn secp256k1_sign(signer: &str, data: &str) -> Signature{
 
         let secret_key = SecretKey::from_str(signer).unwrap();
-        let data_bytes = data.as_bytes();
         let hashed_data = Self::generate_sha256_from(data);
         let hashed_message = Message::from_digest(hashed_data);
         
@@ -488,11 +506,10 @@ impl Wallet{
         /* generating seed from the password and generated menmonic */
         let bip_seed_phrases = Seed::new(&mnemonic, passphrase);
         
-        /* 
+        /*          -------------- generating sha25 bits hash of data --------------
             generating a 32 bytes hash of the bip_seed_phrases using sha256 we're doing this
             because StdRng::from_seed() takes 32 bytes seed to generate the rng 
         */
-        /* generating sha25 bits hash of data */
         let mut hasher = Sha256::new();
         hasher.update(bip_seed_phrases.as_bytes());
         let hash_data = hasher.finalize();
@@ -563,10 +580,10 @@ impl Contract{
         
     }
 
-    pub fn new_with_secp256k1(owner: &str, passphrase: &str) -> Self{
+    pub fn new_with_secp256k1(owner: &str, passphrase: &str, mnemonic: Option<&str>) -> Self{
         
         let static_owner = string_to_static_str(owner.to_string());
-        let wallet = Wallet::new_secp256k1(passphrase);
+        let wallet = Wallet::new_secp256k1(passphrase, mnemonic);
 
         Self { 
             wallet,
@@ -697,8 +714,8 @@ pub mod tests{
         let stringify_data = serde_json::to_string_pretty(&data).unwrap();
 
         /* wallet operations */
-
-        let contract = Contract::new_with_secp256k1("0xDE6D7045Df57346Ec6A70DfE1518Ae7Fe61113f4", "wildonion123");
+        let existing_mnemonic_sample = Some("obot glare amazing hip saddle habit soft barrel sell fine document february");
+        let contract = Contract::new_with_secp256k1("0xDE6D7045Df57346Ec6A70DfE1518Ae7Fe61113f4", "wildonion123", None);
         Wallet::save_to_json(&contract.wallet, "secp256k1").unwrap();
 
         let signature = Wallet::secp256k1_sign(contract.wallet.secp256k1_secret_key.as_ref().unwrap().to_string().as_str(), stringify_data.clone().as_str());
@@ -745,7 +762,7 @@ pub mod tests{
             ECDSA with secp256k1 curve keypairs 
             (compatible with all evm based chains) 
         */
-        let wallet = Wallet::new_secp256k1("");
+        let wallet = Wallet::new_secp256k1("", None); // generate a new wallet with no passphrase and mnemonic
 
         let data_to_be_signed = serde_json::json!({
             "recipient": "deadkings",
