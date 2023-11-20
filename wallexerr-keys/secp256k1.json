@@ -1,8 +1,8 @@
 {
-  "secp256k1_secret_key": "50e46f5143f0b1d80f31a717ee5560b5c02797d74ef50d18038d08f8ffc21faf",
-  "secp256k1_public_key": "0342e0ca487c565e27fe6bd51ca064670fb72ab592f74b027c6afd8d3078d2965c",
-  "secp256k1_public_address": "0xf98f17fd7b6e68d89d2f90c89e534e9d5784919e",
-  "secp256k1_mnemonic": "egg energy damp depth choice nut reform bachelor shop music tomorrow sign",
+  "secp256k1_secret_key": "f79e25f6e1c7261fb2c2bcdacf07193643727ecc400826481bf1fa90579de3e5",
+  "secp256k1_public_key": "034217e7264a580f5b086770ae728e611f7f097e5d9fec686896bc1603d8db15db",
+  "secp256k1_public_address": "0xc257cc023af6e2c1aa92d0993b227f12e415a4ed",
+  "secp256k1_mnemonic": "body close home visa robust dirt sick rather sadness myself leave monkey",
   "secp256r1_secret_key": null,
   "secp256r1_public_key": null,
   "ed25519_secret_key": null,

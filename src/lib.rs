@@ -1,6 +1,7 @@
 
 
 
+use tiny_keccak::Hasher;
 use web3::types::SignedData;
 use std::io::{BufWriter, Write, Read};
 use ring::{signature as ring_signature, rand as ring_rand};
@@ -199,7 +200,7 @@ impl Wallet{
         let base64_prvkey_string = general_purpose::URL_SAFE_NO_PAD.encode(prvkey);
 
 
-        /*             -------------- converting bytes to base۵۸ string --------------
+        /*             -------------- converting bytes to base58 string --------------
             by default ToBase58 and FromBase58 traits are implemented for 
             [u8] so by importing them in here we can call the to_base58()
             on &[u8] and from_base58() on String 
@@ -226,7 +227,7 @@ impl Wallet{
 
         let seed_mnemonic_bytes_and_string = Self::generate_seed_phrases(passphrase);
         let seed_mnemonic_hash_bytes = if mnemonic.is_some(){
-            Self::generate_sha256_from(mnemonic.unwrap())
+            Self::generate_keccak256_hash_from(mnemonic.unwrap())
         } else{
             seed_mnemonic_bytes_and_string.0
         };
@@ -280,7 +281,7 @@ impl Wallet{
     pub fn ed25519_sign(data: &str, prvkey: &str) -> Option<String>{
 
         /* generating sha25 bits hash of data */
-        let hash_data_bytes = Self::generate_sha256_from(data);
+        let hash_data_bytes = Self::generate_keccak256_hash_from(data);
 
         let ed25519 = Self::retrieve_ed25519_keypair(prvkey);
         
@@ -396,7 +397,7 @@ impl Wallet{
     pub fn secp256k1_sign(signer: &str, data: &str) -> Signature{
 
         let secret_key = SecretKey::from_str(signer).unwrap();
-        let hashed_data = Self::generate_sha256_from(data);
+        let hashed_data = Self::generate_keccak256_hash_from(data);
         let hashed_message = Message::from_digest(hashed_data);
         
         /* message is an sha256 bits hashed data */
@@ -437,7 +438,7 @@ impl Wallet{
         let ec_signer = SecureSign::new(ec_prvkey.clone());
 
         /* generating sha25 bits hash of data */
-        let hash_data_bytes = Self::generate_sha256_from(data);
+        let hash_data_bytes = Self::generate_keccak256_hash_from(data);
     
         /* generating signature from the hashed data */
         let ec_sig = ec_signer.sign(&hash_data_bytes).unwrap();
@@ -483,6 +484,16 @@ impl Wallet{
         let hash_data_bytes = hash_data;
         hash_data_bytes.into()
 
+    }
+
+    pub fn generate_keccak256_hash_from(data: &str) -> [u8; 32]{
+
+        /* generating keccak256 sha3 hash of data */
+        let mut sha3 = tiny_keccak::Sha3::v256();
+        let mut output = [0u8; 32];
+        sha3.update(data.as_bytes());
+        sha3.finalize(&mut output); /* pass a mutable pointer to the output so the output can be mutated */
+        output
     }
 
     fn generate_seed_phrases(passphrase: &str) -> ([u8; 32], String){
@@ -624,7 +635,7 @@ pub mod tests{
         
         let signature_hex = Wallet::ed25519_sign(stringify_data.clone().as_str(), contract.wallet.ed25519_secret_key.as_ref().unwrap().as_str());
 
-        let hash_of_data = Wallet::generate_sha256_from(&stringify_data);
+        let hash_of_data = Wallet::generate_keccak256_hash_from(&stringify_data);
         let verify_res = Wallet::verify_ed25519_signature(signature_hex.clone().unwrap().as_str(), hash_of_data.as_slice(), contract.wallet.ed25519_public_key.unwrap().as_str());
 
         let keypair = Wallet::retrieve_ed25519_keypair(
@@ -665,7 +676,7 @@ pub mod tests{
         let contract = Contract::new_with_secp256r1("0xDE6D7045Df57346Ec6A70DfE1518Ae7Fe61113f4");
         Wallet::save_to_json(&contract.wallet, "secp256r1").unwrap();
 
-        let hashed_data = Wallet::generate_sha256_from(stringify_data.clone().as_str());
+        let hashed_data = Wallet::generate_keccak256_hash_from(stringify_data.clone().as_str());
 
         let signature_hex = Wallet::secp256r1_sign(contract.wallet.secp256r1_secret_key.as_ref().unwrap().to_string().as_str(), stringify_data.clone().as_str());
 
@@ -734,7 +745,7 @@ pub mod tests{
         match pubkey{
             Ok(pk) => {
                 
-                let hash_of_data = Wallet::generate_sha256_from(&stringify_data);
+                let hash_of_data = Wallet::generate_keccak256_hash_from(&stringify_data);
                 let verification_result = Wallet::verify_secp256k1_signature_from_pubkey(hash_of_data.as_slice(), signature.to_string().as_str(), pk);
                 match verification_result{
                     Ok(_) => {
