@@ -278,6 +278,24 @@ impl Wallet{
 
     }
 
+    pub fn self_ed25519_sign(&mut self, data: &str, prvkey: &str) -> Option<String>{
+
+        /* generating sha25 bits hash of data */
+        let hash_data_bytes = Self::generate_keccak256_hash_from(data);
+
+        let ed25519 = Self::retrieve_ed25519_keypair(prvkey);
+        
+        /* signing the hashed data */
+        let signature = ed25519.sign(&hash_data_bytes);
+        let sig = signature.as_ref().to_vec();
+
+        /* generating base64 string of the signature */
+        let base58_sig_string = sig.to_base58();
+        
+        Some(base58_sig_string)
+
+    }
+
     pub fn ed25519_sign(data: &str, prvkey: &str) -> Option<String>{
 
         /* generating sha25 bits hash of data */
@@ -325,7 +343,39 @@ impl Wallet{
 
     }
 
+    pub fn self_verify_ed25519_signature(&mut self, sig: &str, hash_data_bytes: &[u8], pubkey: &str) -> Result<(), ring::error::Unspecified>{
+
+        /* decoding the base64 sig to get the actual bytes */
+        let sig_bytes = sig.from_base58().unwrap();
+
+        /* decoding the base64 public key to get the actual bytes */
+        let pubkey_bytes = pubkey.from_base58().unwrap();
+
+        /* creating the public key  */
+        let ring_pubkey = ring_signature::UnparsedPublicKey::new(
+            &ring_signature::ED25519, 
+            &pubkey_bytes);
+
+        /* 
+            Vec<u8> can be coerced to &[u8] slice by taking a reference to it 
+            since a pointer to the underlying Vec<u8> means taking a slice of 
+            vector with a valid lifetime
+        */
+        let verify_res = ring_pubkey.verify(&hash_data_bytes, &sig_bytes);
+        verify_res
+
+    }
+
     pub fn retrieve_ed25519_keypair(prv_key: &str) -> Ed25519KeyPair{
+
+        /* decoding the base64 private key to get the actual bytes */
+        let prvkey_bytes = prv_key.from_base58().unwrap();
+        let generated_ed25519_keys = Ed25519KeyPair::from_pkcs8(&prvkey_bytes).unwrap();
+        generated_ed25519_keys
+
+    }
+
+    pub fn self_retrieve_ed25519_keypair(&mut self, prv_key: &str) -> Ed25519KeyPair{
 
         /* decoding the base64 private key to get the actual bytes */
         let prvkey_bytes = prv_key.from_base58().unwrap();
@@ -360,6 +410,21 @@ impl Wallet{
 
     }
 
+    pub fn self_verify_secp256k1_signature_from_pubkey_str(&mut self, data: &[u8], sig: &str, pk: &str) -> Result<(), secp256k1::Error>{
+
+        /* data is alrady the sha256 hash of real data */
+        let hash_data_bytes = convert_into_u8_32(data).unwrap();
+        let hashed_message = Message::from_digest(hash_data_bytes);
+
+        let sig = Signature::from_str(sig).unwrap();
+        let pubkey = PublicKey::from_str(pk).unwrap();
+            
+        /* message is an sha256 bits hashed data */
+        let secp = Secp256k1::verification_only();
+        secp.verify_ecdsa(&hashed_message, &sig, &pubkey)
+
+    }
+
     /* 
         for security reasons we must verify the hash of data against the signature 
         the sha256 hash of data must be passed from client to this function, we 
@@ -367,6 +432,19 @@ impl Wallet{
         hash of real data
     */
     pub fn verify_secp256k1_signature_from_pubkey(data: &[u8], sig: &str, pk: PublicKey) -> Result<(), secp256k1::Error>{
+
+        /* data is alrady the sha256 hash of real data */
+        let hash_data_bytes = convert_into_u8_32(data).unwrap();
+        let hashed_message = Message::from_digest(hash_data_bytes);
+        let sig = Signature::from_str(sig).unwrap();
+            
+        /* message is an sha256 bits hashed data */
+        let secp = Secp256k1::verification_only();
+        secp.verify_ecdsa(&hashed_message, &sig, &pk)
+
+    }
+
+    pub fn self_verify_secp256k1_signature_from_pubkey(&mut self, data: &[u8], sig: &str, pk: PublicKey) -> Result<(), secp256k1::Error>{
 
         /* data is alrady the sha256 hash of real data */
         let hash_data_bytes = convert_into_u8_32(data).unwrap();
@@ -394,7 +472,36 @@ impl Wallet{
         (public_key, secret_key)
     }
 
+    pub fn self_retrieve_secp256k1_keypair(&mut self, secret_key: &str) -> (PublicKey, SecretKey){
+
+        /* 
+            since secret_key is a hex string we have to get its bytes using 
+            hex::decode() cause calling .as_bytes() on the hex string converts
+            the hex string itself into bytes and it doesn't return the acutal bytes
+        */
+        let prv_bytes = hex::decode(secret_key).unwrap();
+        let secp = Secp256k1::new();
+        let secret_key = SecretKey::from_slice(&prv_bytes).unwrap();
+        let public_key = PublicKey::from_secret_key(&secp, &secret_key);
+
+        (public_key, secret_key)
+    }
+
     pub fn secp256k1_sign(signer: &str, data: &str) -> Signature{
+
+        let secret_key = SecretKey::from_str(signer).unwrap();
+        let hashed_data = Self::generate_keccak256_hash_from(data);
+        let hashed_message = Message::from_digest(hashed_data);
+        
+        /* message is an sha256 bits hashed data */
+        let secp = Secp256k1::new();
+
+        /* signing the hashed data */
+        secp.sign_ecdsa(&hashed_message, &secret_key)
+
+    }
+
+    pub fn self_secp256k1_sign(&mut self, signer: &str, data: &str) -> Signature{
 
         let secret_key = SecretKey::from_str(signer).unwrap();
         let hashed_data = Self::generate_keccak256_hash_from(data);
@@ -426,7 +533,47 @@ impl Wallet{
 
     }
 
+    pub fn self_retrieve_secp256r1_keypair(&mut self, pubkey: &str, prvkey: &str) -> themis::keys::KeyPair{
+
+        /* 
+            since pubkey and prvkey are hex string we have to get their bytes using 
+            hex::decode() cause calling .as_bytes() on the hex string converts
+            the hex string itself into bytes and it doesn't return the acutal bytes
+        */
+        let pubkey_bytes = hex::decode(pubkey).unwrap();
+        let prvkey_bytes = hex::decode(prvkey).unwrap();
+
+        /* building ECDSA keypair from pubkey and prvkey slices */
+        let ec_pubkey = EcdsaPublicKey::try_from_slice(&pubkey_bytes).unwrap();
+        let ec_prvkey = EcdsaPrivateKey::try_from_slice(&prvkey_bytes).unwrap();
+        let generated_ec_keypair = ThemisKeyPair::try_join(ec_prvkey, ec_pubkey).unwrap();
+        generated_ec_keypair
+
+    }
+
     pub fn secp256r1_sign(signer: &str, data: &str) -> Option<String>{
+
+        /* 
+            since signer is a hex string we have to get its bytes using 
+            hex::decode() cause calling .as_bytes() on the hex string converts
+            the hex string itself into bytes and it doesn't return the acutal bytes
+        */
+        let prvkey_bytes = hex::decode(signer).unwrap();
+        let ec_prvkey = EcdsaPrivateKey::try_from_slice(&prvkey_bytes).unwrap();
+        let ec_signer = SecureSign::new(ec_prvkey.clone());
+
+        /* generating sha25 bits hash of data */
+        let hash_data_bytes = Self::generate_keccak256_hash_from(data);
+    
+        /* generating signature from the hashed data */
+        let ec_sig = ec_signer.sign(&hash_data_bytes).unwrap();
+        
+        /* converting the signature bytes into hex string */
+        Some(hex::encode(&ec_sig))
+
+    }
+
+    pub fn self_secp256r1_sign(&mut self, signer: &str, data: &str) -> Option<String>{
 
         /* 
             since signer is a hex string we have to get its bytes using 
@@ -475,6 +622,33 @@ impl Wallet{
 
     }
 
+    pub fn self_verify_secp256r1_signature(&mut self, signature: &str, pubkey: &str) -> Result<Vec<u8>, themis::Error>{
+
+        /* 
+            since signature and pubkey are hex string we have to get their bytes using 
+            hex::decode() cause calling .as_bytes() on the hex string converts
+            the hex string itself into bytes and it doesn't return the acutal bytes
+        */
+        let signature_bytes = hex::decode(signature).unwrap();
+        let pubkey_bytes = hex::decode(pubkey).unwrap();
+
+        /* building the public key from public key bytes */
+        let Ok(ec_pubkey) = EcdsaPublicKey::try_from_slice(&pubkey_bytes) else{
+            let err = EcdsaPublicKey::try_from_slice(&pubkey_bytes).unwrap_err();
+            return Err(err); /* can't build pubkey from the passed in slice */
+        };
+
+        /* building the verifier from the public key */
+        let ec_verifier = SecureVerify::new(ec_pubkey.clone());
+
+        /* verifying the signature byte which returns the hash of data in form of vector of utf8 bytes */
+        let encoded_data = ec_verifier.verify(&signature_bytes);
+
+        /* this is the encoded sha256 bits hash of data */
+        encoded_data
+
+    }
+
     pub fn generate_sha256_from(data: &str) -> [u8; 32]{
 
         /* generating sha25 bits hash of data */
@@ -486,7 +660,28 @@ impl Wallet{
 
     }
 
+    pub fn self_generate_sha256_from(&mut self, data: &str) -> [u8; 32]{
+
+        /* generating sha25 bits hash of data */
+        let mut hasher = Sha256::new();
+        hasher.update(data.as_bytes());
+        let hash_data = hasher.finalize();
+        let hash_data_bytes = hash_data;
+        hash_data_bytes.into()
+
+    }
+
     pub fn generate_keccak256_hash_from(data: &str) -> [u8; 32]{
+
+        /* generating keccak256 sha3 hash of data */
+        let mut sha3 = tiny_keccak::Sha3::v256();
+        let mut output = [0u8; 32];
+        sha3.update(data.as_bytes());
+        sha3.finalize(&mut output); /* pass a mutable pointer to the output so the output can be mutated */
+        output
+    }
+
+    pub fn self_generate_keccak256_hash_from(&mut self, data: &str) -> [u8; 32]{
 
         /* generating keccak256 sha3 hash of data */
         let mut sha3 = tiny_keccak::Sha3::v256();
@@ -534,6 +729,24 @@ impl Wallet{
     }
 
     pub fn save_to_json(wallet: &Wallet, _type: &str) -> Result<(), ()>{
+
+        let walletdir = std::fs::create_dir_all("wallexerr-keys").unwrap();
+        let errordir = std::fs::create_dir_all("logs").unwrap();
+        let walletpath = format!("wallexerr-keys/{_type:}.json");  
+        let errorpath = format!("logs/error.log");  
+        let mut file = std::fs::File::create(walletpath).unwrap();
+        let mut filelog = std::fs::File::create(errorpath).unwrap();
+        
+        let pretty_json = serde_json::to_string_pretty(wallet).unwrap();
+        let write_res = file.write(pretty_json.as_bytes());
+        if let Err(why) = write_res{
+            filelog.write(why.to_string().as_bytes());
+        } 
+
+        Ok(())
+    }
+
+    pub fn self_save_to_json(&mut self, wallet: &Wallet, _type: &str) -> Result<(), ()>{
 
         let walletdir = std::fs::create_dir_all("wallexerr-keys").unwrap();
         let errordir = std::fs::create_dir_all("logs").unwrap();
