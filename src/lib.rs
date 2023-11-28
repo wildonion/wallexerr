@@ -61,7 +61,7 @@ fn convert_into_u8_32(data: &[u8]) -> Option<[u8; 32]>{
 */
 
 
-
+/* EVM module containing all evm based web3 calls like signing and verifying */
 pub mod evm{
 
     use super::*;
@@ -71,19 +71,21 @@ pub mod evm{
         let transport = transports::WebSocket::new(infura_url).await.unwrap();
         let web3_con = Web3::new(transport);
     
-        /* generating secret key instance from secp256k1 secret key */
+        /* generating private key instance from secp256k1 secret key */
         let web3_sec = web3::signing::SecretKey::from_str(wallet.secp256k1_secret_key.as_ref().unwrap().as_str()).unwrap();
+        
+        /* generating keccak256 sha3 hash of data */
         let keccak256_hash_of_message = web3_con.accounts().hash_message(data.to_string().as_bytes());
         println!("web3 keccak256 hash of message {:?}", keccak256_hash_of_message); 
     
-        /* signing the keccak256 hash of data */
+        /* signing the keccak256 hash of data using created private key */
         let signed_data = web3_con.accounts().sign(
             keccak256_hash_of_message, 
             &web3_sec
         );
     
         /* getting signature of the signed data */
-        // signature bytes schema: pub struct Bytes(pub Vec<u8>);
+        //--- signature bytes schema: pub struct Bytes(pub Vec<u8>);
         let sig_bytes = signed_data.signature.0.as_slice();
         let sig_str = hex::encode(sig_bytes);
         println!("web3 hex signature :::: {}", sig_str);
@@ -112,7 +114,7 @@ pub mod evm{
         let transport = transports::WebSocket::new(infura_url).await.unwrap();
         let web3_con = Web3::new(transport);
     
-        /* recovering public address from signature and keccak256 bits hash of the message */
+        /* generating a recovery message from keccak256 sha3 hash of the message */
         let data_hash = match hex::decode(data_hash){
             Ok(hash) => hash,
             Err(e) => return Err(false),
@@ -131,6 +133,7 @@ pub mod evm{
         let recovered_screen_cidh160 = web3_con.accounts().recover(rec).unwrap().to_fixed_bytes();
         let recovered_screen_cid_hex = format!("0x{}", hex::encode(&recovered_screen_cidh160));
     
+        /* means the message gets signed by the owner */
         if sender == recovered_screen_cid_hex{
             Ok(true)
         } else{
@@ -143,7 +146,7 @@ pub mod evm{
 
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
 pub struct DataBucket{
-    pub value: String, /* json stringify */
+    pub value: String, /* any json stringify data */
     pub signed_at: i64,
     pub signature: String
 }
@@ -982,10 +985,6 @@ pub mod tests{
     #[tokio::test]
     pub async fn test_evm(){
 
-        /* 
-            ECDSA with secp256k1 curve keypairs 
-            (compatible with all evm based chains) 
-        */
         let wallet = Wallet::new_secp256k1("", None); // generate a new wallet with no passphrase and mnemonic
 
         let data_to_be_signed = serde_json::json!({
