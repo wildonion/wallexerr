@@ -26,6 +26,8 @@ use themis::keys::KeyPair as ThemisKeyPair;
 use bip39::{Language, Mnemonic, MnemonicType, Seed};
 use base64::{engine::general_purpose, Engine as _};
 use base58::{ToBase58, FromBase58};
+use aes256ctr_poly1305aes::{Aes256CtrPoly1305Aes, Key, Nonce};
+use aes256ctr_poly1305aes::aead::Aead;
 
 
 /* 
@@ -41,7 +43,15 @@ fn convert_into_u8_32(data: &[u8]) -> Option<[u8; 32]>{
     data.try_into().ok()
 }
 
-/* 
+fn convert_into_u8_64(data: &[u8]) -> Option<[u8; 64]>{
+    data.try_into().ok()
+}
+
+fn convert_into_u8_16(data: &[u8]) -> Option<[u8; 16]>{
+    data.try_into().ok()
+}
+
+/** 
      ---------------------------------------------------------------------
     |   RSA (Asymmetric) Crypto Wallet Implementations using ECC Curves
     |---------------------------------------------------------------------
@@ -53,15 +63,24 @@ fn convert_into_u8_32(data: &[u8]) -> Option<[u8; 32]>{
     |
     |  secp256k1 ENTROPY: BIP39 SEED PHRASES
     |
+    |       256 BITS HASH METHDOS
+    | sha2
+    | sha3 keccak
+    | aes
+    |
 
     https://github.com/skerkour/black-hat-rust/tree/main/ch_11
     https://cryptobook.nakov.com/digital-signatures
     https://thalesdocs.com/gphsm/luna/7/docs/network/Content/sdk/using/ecc_curve_cross-reference.htm
 
+**/
+
+
+/* >---------------------------------------------------------------------------
+    EVM module containing all evm based web3 calls like signing and verifying 
+    note that web3 is using secp256k1 curve algorithm in its core api thus the 
+    generated public and private keys are the same one as for Secp256k1 crate
 */
-
-
-/* EVM module containing all evm based web3 calls like signing and verifying */
 pub mod evm{
 
     use super::*;
@@ -144,7 +163,7 @@ pub mod evm{
 
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, Default)]
+#[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
 pub struct DataBucket{
     pub value: String, /* any json stringify data */
     pub signed_at: i64,
@@ -303,6 +322,42 @@ impl Wallet{
 
         /* generating sha25 bits hash of data */
         let hash_data_bytes = Self::generate_keccak256_hash_from(data);
+
+        let ed25519 = Self::retrieve_ed25519_keypair(prvkey);
+        
+        /* signing the hashed data */
+        let signature = ed25519.sign(&hash_data_bytes);
+        let sig = signature.as_ref().to_vec();
+
+        /* generating base64 string of the signature */
+        let base58_sig_string = sig.to_base58();
+        
+        Some(base58_sig_string)
+
+    }
+
+    pub fn ed25519_aes256_sign(prvkey: &str, aes256config: Aes256Config) -> Option<String>{
+
+        /* generating sha25 bits hash of data */
+        let hash_data_bytes = Self::generate_aes256_from(aes256config);
+
+        let ed25519 = Self::retrieve_ed25519_keypair(prvkey);
+        
+        /* signing the hashed data */
+        let signature = ed25519.sign(&hash_data_bytes);
+        let sig = signature.as_ref().to_vec();
+
+        /* generating base64 string of the signature */
+        let base58_sig_string = sig.to_base58();
+        
+        Some(base58_sig_string)
+
+    }
+
+    pub fn self_ed25519_aes256_sign(&mut self, prvkey: &str, aes256config: Aes256Config) -> Option<String>{
+
+        /* generating sha25 bits hash of data */
+        let hash_data_bytes = Self::generate_aes256_from(aes256config);
 
         let ed25519 = Self::retrieve_ed25519_keypair(prvkey);
         
@@ -673,6 +728,96 @@ impl Wallet{
         hash_data_bytes.into()
 
     }
+    
+    pub fn generate_aes256_from(aes256config: Aes256Config) -> Vec<u8>{
+
+        /* 
+            in here data is the raw form of our data which is the plaintext
+            that we want to encrypt it
+        */
+        let Aes256Config{ secret_key, nonce, data } = aes256config;
+        
+        /* encrypting data using aes256 bits secret key */
+        let cipher = Aes256CtrPoly1305Aes::new(
+            Key::from_slice(
+                secret_key.as_bytes()
+            )
+        );
+        let nonce = Nonce::from_slice(
+            nonce.as_bytes()
+        );
+
+        let ciphertext = cipher.encrypt(nonce, data.as_slice()).unwrap();
+        ciphertext
+        
+    }
+
+    pub fn generate_data_from_aes256(aes256config: Aes256Config) -> Vec<u8>{
+
+        /* 
+            in here data is the encrypted form of plaintext which is the cipher text 
+            that we want to decrypt it
+        */
+        let Aes256Config{ secret_key, nonce, data } = aes256config;
+
+        /* decrypting cipher text */
+        let cipher = Aes256CtrPoly1305Aes::new(
+            Key::from_slice(
+                secret_key.as_bytes()
+            )
+        );
+        let nonce = Nonce::from_slice(
+            nonce.as_bytes()
+        );
+
+        let data = cipher.decrypt(nonce, data.as_slice()).unwrap();
+        data
+    }
+
+    pub fn self_generate_aes256_from(&mut self, aes256config: Aes256Config) -> Vec<u8>{
+
+        /* 
+            in here data is the raw form of our data which is the plaintext
+            that we want to encrypt it
+        */
+        let Aes256Config{ secret_key, nonce, data } = aes256config;
+        
+        /* encrypting data using aes256 bits secret key */
+        let cipher = Aes256CtrPoly1305Aes::new(
+            Key::from_slice(
+                secret_key.as_bytes()
+            )
+        );
+        let nonce = Nonce::from_slice(
+            nonce.as_bytes()
+        );
+
+        let ciphertext = cipher.encrypt(nonce, data.as_slice()).unwrap();
+        ciphertext
+        
+    }
+
+    pub fn self_generate_data_from_aes256(&mut self, aes256config: Aes256Config) -> Vec<u8>{
+
+        /* 
+            in here data is the encrypted form of plaintext which is the cipher text 
+            that we want to decrypt it
+        */
+        let Aes256Config{ secret_key, nonce, data } = aes256config;
+
+        /* decrypting cipher text */
+        let cipher = Aes256CtrPoly1305Aes::new(
+            Key::from_slice(
+                secret_key.as_bytes()
+            )
+        );
+        let nonce = Nonce::from_slice(
+            nonce.as_bytes()
+        );
+
+        let data = cipher.decrypt(nonce, data.as_slice()).unwrap();
+        data
+    }
 
     pub fn generate_keccak256_hash_from(data: &str) -> [u8; 32]{
 
@@ -770,6 +915,13 @@ impl Wallet{
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
+pub struct Aes256Config{
+    pub secret_key: String, // 64 bytes
+    pub nonce: String, // 16 bytes - unique per each message
+    pub data: Vec<u8> // either encrypted or decrypted
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, Default)]
 pub struct Contract{
     pub wallet: Wallet,
     pub iat: i64,
@@ -862,7 +1014,6 @@ pub mod tests{
             contract.wallet.ed25519_secret_key.unwrap().as_str()
         );
 
-        
         match verify_res{
             Ok(is_verified) => {
                 
@@ -870,6 +1021,71 @@ pub mod tests{
                 data.signature = signature_hex.unwrap();
                 data.signed_at = chrono::Local::now().timestamp_nanos();
                 Ok(())
+
+            },
+            Err(e) => Err(e)
+        }
+
+    }
+
+    #[test]
+    pub fn ed25519_aes256_test() -> Result<(), ring::error::Unspecified>{
+        
+        let mut data = DataBucket{
+            value: "json stringify data".to_string(), /* json stringify */ 
+            signature: "".to_string(),
+            signed_at: 0,
+        };
+        let stringify_data = serde_json::to_string_pretty(&data).unwrap();
+
+        let mut aes256config = Aes256Config{
+            secret_key: String::from("This is an example of a very secret key. Keep it always secret!!"),
+            nonce: String::from("my unique nonce!"),
+            data: stringify_data.as_bytes().to_vec(),
+        };
+
+        /* wallet operations */
+
+        let contract = Contract::new_with_ed25519("0xDE6D7045Df57346Ec6A70DfE1518Ae7Fe61113f4");
+        Wallet::save_to_json(&contract.wallet, "ed25519").unwrap();
+        
+        let signature_hex = Wallet::ed25519_aes256_sign(contract.wallet.ed25519_secret_key.as_ref().unwrap().as_str(), aes256config.clone());
+
+        let hash_of_data = Wallet::generate_aes256_from(aes256config.clone());
+        println!("aes256 encrypted data :::: {:?}", hex::encode(&hash_of_data));
+
+        let verify_res = Wallet::verify_ed25519_signature(signature_hex.clone().unwrap().as_str(), hash_of_data.as_slice(), contract.wallet.ed25519_public_key.unwrap().as_str());
+
+        let keypair = Wallet::retrieve_ed25519_keypair(
+            /* 
+                unwrap() takes the ownership of the type hence we must borrow 
+                the type before calling it using as_ref() 
+            */
+            contract.wallet.ed25519_secret_key.unwrap().as_str()
+        );
+
+        match verify_res{
+            Ok(is_verified) => {
+
+                aes256config.data = hash_of_data.clone(); /* update data field with encrypted form of raw data */
+                let dec = Wallet::generate_data_from_aes256(aes256config);
+                println!("aes256 decrypted data :::: {:?}", std::str::from_utf8(&dec));
+
+                let deserialized_data = serde_json::from_str::<DataBucket>(std::str::from_utf8(&dec).unwrap()).unwrap();
+                
+                if deserialized_data == data{
+
+                    println!("✅ got same data");
+                    /* fill the signature and signed_at fields if the signature was valid */
+                    data.signature = signature_hex.unwrap();
+                    data.signed_at = chrono::Local::now().timestamp_nanos();
+                    return Ok(());
+
+                } else{
+
+                    eprintln!("🔴 invalid data");
+                    Ok(())
+                }
 
             },
             Err(e) => Err(e)
@@ -941,7 +1157,8 @@ pub mod tests{
         let stringify_data = serde_json::to_string_pretty(&data).unwrap();
 
         /* wallet operations */
-        let existing_mnemonic_sample = Some("obot glare amazing hip saddle habit soft barrel sell fine document february");
+        // let existing_mnemonic_sample = Some("obot glare amazing hip saddle habit soft barrel sell fine document february");
+        // let contract = Contract::new_with_secp256k1("0xDE6D7045Df57346Ec6A70DfE1518Ae7Fe61113f4", "wildonion123", existing_mnemonic_sample, None);
         let contract = Contract::new_with_secp256k1("0xDE6D7045Df57346Ec6A70DfE1518Ae7Fe61113f4", "wildonion123", None);
         Wallet::save_to_json(&contract.wallet, "secp256k1").unwrap();
 

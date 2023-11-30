@@ -1,8 +1,8 @@
 {
-  "secp256k1_secret_key": "f79e25f6e1c7261fb2c2bcdacf07193643727ecc400826481bf1fa90579de3e5",
-  "secp256k1_public_key": "034217e7264a580f5b086770ae728e611f7f097e5d9fec686896bc1603d8db15db",
-  "secp256k1_public_address": "0xc257cc023af6e2c1aa92d0993b227f12e415a4ed",
-  "secp256k1_mnemonic": "body close home visa robust dirt sick rather sadness myself leave monkey",
+  "secp256k1_secret_key": "96d55941634f7695bd4d61a62d2f0d1b0cea34312ab7fbfb15482142a1578ff2",
+  "secp256k1_public_key": "021056e51bb676635212cae8349a072fca9c3357461814914ddd920e2678ede2c5",
+  "secp256k1_public_address": "0x35a86d6580cc3f8a5ced9df7b1e89d58951288d0",
+  "secp256k1_mnemonic": "credit planet chief shoulder rookie say source tail spider very glory margin",
   "secp256r1_secret_key": null,
   "secp256r1_public_key": null,
   "ed25519_secret_key": null,
