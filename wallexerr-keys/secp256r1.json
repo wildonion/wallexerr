@@ -3,8 +3,8 @@
   "secp256k1_public_key": null,
   "secp256k1_public_address": null,
   "secp256k1_mnemonic": null,
-  "secp256r1_secret_key": "524543320000002d4d68673b008668563c3fd47c660200d0c36b597f0839dd50095c5fd292d8ce5c871b7a073e",
-  "secp256r1_public_key": "554543320000002dead667320235c4f2d44e0cb2613033b3a8c4a50cfc9a533fd8208e661b3239b3b8feb360fd",
+  "secp256r1_secret_key": "524543320000002df7593ec50094823debd2a12c106d9640c2e7c97b3b205e1a35b716dd0ef9eb909856a0dafa",
+  "secp256r1_public_key": "554543320000002daddac6e00220689fb8a79fc23c9d710a6afaf8bf0ad287ab27e18dac0c4778a9f22d0b094f",
   "ed25519_secret_key": null,
   "ed25519_public_key": null
 }

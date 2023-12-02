@@ -277,7 +277,7 @@ impl Wallet{
         let signature = ed25519.sign(&hash_data_bytes);
         let sig = signature.as_ref().to_vec();
 
-        /* generating base64 string of the signature */
+        /* generating base58 string of the signature */
         let base58_sig_string = sig.to_base58();
         
         Some(base58_sig_string)
@@ -295,17 +295,18 @@ impl Wallet{
         let signature = ed25519.sign(&hash_data_bytes);
         let sig = signature.as_ref().to_vec();
 
-        /* generating base64 string of the signature */
+        /* generating base58 string of the signature */
         let base58_sig_string = sig.to_base58();
         
         Some(base58_sig_string)
 
     }
 
-    pub fn ed25519_aes256_sign(prvkey: &str, aes256config: Aes256Config) -> Option<String>{
+    pub fn ed25519_aes256_sign(prvkey: &str, aes256config: &mut Aes256Config) -> Option<String>{
 
         /* generating sha25 bits hash of data */
         let hash_data_bytes = Self::generate_aes256_from(aes256config);
+        aes256config.data = hash_data_bytes.clone();
 
         let ed25519 = Self::retrieve_ed25519_keypair(prvkey);
         
@@ -313,17 +314,18 @@ impl Wallet{
         let signature = ed25519.sign(&hash_data_bytes);
         let sig = signature.as_ref().to_vec();
 
-        /* generating base64 string of the signature */
+        /* generating base58 string of the signature */
         let base58_sig_string = sig.to_base58();
         
         Some(base58_sig_string)
 
     }
 
-    pub fn self_ed25519_aes256_sign(&mut self, prvkey: &str, aes256config: Aes256Config) -> Option<String>{
+    pub fn self_ed25519_aes256_sign(&mut self, prvkey: &str, aes256config: &mut Aes256Config) -> Option<String>{
 
         /* generating sha25 bits hash of data */
         let hash_data_bytes = Self::generate_aes256_from(aes256config);
+        aes256config.data = hash_data_bytes.clone();
 
         let ed25519 = Self::retrieve_ed25519_keypair(prvkey);
         
@@ -331,7 +333,50 @@ impl Wallet{
         let signature = ed25519.sign(&hash_data_bytes);
         let sig = signature.as_ref().to_vec();
 
-        /* generating base64 string of the signature */
+        /* generating base58 string of the signature */
+        let base58_sig_string = sig.to_base58();
+        
+        Some(base58_sig_string)
+
+    }
+
+    pub fn ed25519_secure_cell_sign(prvkey: &str, secure_cell_config: &mut SecureCellConfig) -> Option<String>{
+
+        /* generating sha25 bits hash of data */
+        let hash_data_bytes = Self::secure_cell_encrypt(secure_cell_config).unwrap();
+        secure_cell_config.data = hash_data_bytes.clone();
+
+        let ed25519 = Self::retrieve_ed25519_keypair(prvkey);
+        
+        /* signing the hashed data */
+        let signature = ed25519.sign(&hash_data_bytes);
+        let sig = signature.as_ref().to_vec();
+
+        /* generating base58 string of the signature */
+        let base58_sig_string = sig.to_base58();
+
+        /*
+            we must return the hash_data_bytes in here since generating
+            a new one is different than the one in here which causes the 
+            verifying will be failed.
+        */
+        Some(base58_sig_string)
+
+    }
+
+    pub fn self_ed25519_secure_cell_sign(&mut self, prvkey: &str, secure_cell_config: &mut SecureCellConfig) -> Option<String>{
+
+        /* generating sha25 bits hash of data */
+        let hash_data_bytes = Self::secure_cell_encrypt(secure_cell_config).unwrap();
+        secure_cell_config.data = hash_data_bytes.clone();
+
+        let ed25519 = Self::retrieve_ed25519_keypair(prvkey);
+        
+        /* signing the hashed data */
+        let signature = ed25519.sign(&hash_data_bytes);
+        let sig = signature.as_ref().to_vec();
+
+        /* generating base58 string of the signature */
         let base58_sig_string = sig.to_base58();
         
         Some(base58_sig_string)
@@ -346,10 +391,10 @@ impl Wallet{
     */
     pub fn verify_ed25519_signature(sig: &str, hash_data_bytes: &[u8], pubkey: &str) -> Result<(), ring::error::Unspecified>{
 
-        /* decoding the base64 sig to get the actual bytes */
+        /* decoding the base58 sig to get the actual bytes */
         let sig_bytes = sig.from_base58().unwrap();
 
-        /* decoding the base64 public key to get the actual bytes */
+        /* decoding the base58 public key to get the actual bytes */
         let pubkey_bytes = pubkey.from_base58().unwrap();
 
         /* creating the public key  */
@@ -369,10 +414,10 @@ impl Wallet{
 
     pub fn self_verify_ed25519_signature(&mut self, sig: &str, hash_data_bytes: &[u8], pubkey: &str) -> Result<(), ring::error::Unspecified>{
 
-        /* decoding the base64 sig to get the actual bytes */
+        /* decoding the base58 sig to get the actual bytes */
         let sig_bytes = sig.from_base58().unwrap();
 
-        /* decoding the base64 public key to get the actual bytes */
+        /* decoding the base58 public key to get the actual bytes */
         let pubkey_bytes = pubkey.from_base58().unwrap();
 
         /* creating the public key  */
@@ -392,7 +437,7 @@ impl Wallet{
 
     pub fn retrieve_ed25519_keypair(prv_key: &str) -> Ed25519KeyPair{
 
-        /* decoding the base64 private key to get the actual bytes */
+        /* decoding the base58 private key to get the actual bytes */
         let prvkey_bytes = prv_key.from_base58().unwrap();
         let generated_ed25519_keys = Ed25519KeyPair::from_pkcs8(&prvkey_bytes).unwrap();
         generated_ed25519_keys
@@ -401,7 +446,7 @@ impl Wallet{
 
     pub fn self_retrieve_ed25519_keypair(&mut self, prv_key: &str) -> Ed25519KeyPair{
 
-        /* decoding the base64 private key to get the actual bytes */
+        /* decoding the base58 private key to get the actual bytes */
         let prvkey_bytes = prv_key.from_base58().unwrap();
         let generated_ed25519_keys = Ed25519KeyPair::from_pkcs8(&prvkey_bytes).unwrap();
         generated_ed25519_keys
@@ -695,7 +740,7 @@ impl Wallet{
 
     }
     
-    pub fn generate_aes256_from(aes256config: Aes256Config) -> Vec<u8>{
+    pub fn generate_aes256_from(aes256config: &mut Aes256Config) -> Vec<u8>{
 
         /* 
             in here data is the raw form of our data which is the plaintext
@@ -718,7 +763,7 @@ impl Wallet{
         
     }
 
-    pub fn generate_data_from_aes256(aes256config: Aes256Config) -> Vec<u8>{
+    pub fn generate_data_from_aes256(aes256config: &mut Aes256Config) -> Vec<u8>{
 
         /* 
             in here data is the encrypted form of plaintext which is the cipher text 
@@ -740,7 +785,7 @@ impl Wallet{
         data
     }
 
-    pub fn self_generate_aes256_from(&mut self, aes256config: Aes256Config) -> Vec<u8>{
+    pub fn self_generate_aes256_from(&mut self, aes256config: &mut Aes256Config) -> Vec<u8>{
 
         /* 
             in here data is the raw form of our data which is the plaintext
@@ -763,7 +808,7 @@ impl Wallet{
         
     }
 
-    pub fn self_generate_data_from_aes256(&mut self, aes256config: Aes256Config) -> Vec<u8>{
+    pub fn self_generate_data_from_aes256(&mut self, aes256config: &mut Aes256Config) -> Vec<u8>{
 
         /* 
             in here data is the encrypted form of plaintext which is the cipher text 
@@ -878,10 +923,10 @@ impl Wallet{
         Ok(())
     }
 
-    pub fn secure_cell_encrypt(themis_secure_cell_config: SecureCellConfig) -> Result<Vec<u8> , themis::Error>{
+    pub fn secure_cell_encrypt(secure_cell_config: &mut SecureCellConfig) -> Result<Vec<u8> , themis::Error>{
 
-        let key = themis_secure_cell_config.secret_key;
-        let data = themis_secure_cell_config.data;
+        let key = secure_cell_config.clone().secret_key;
+        let data = secure_cell_config.clone().data;
 
         let key = SymmetricKey::try_from_slice(key.as_bytes()).unwrap();
         let cell = SecureCell::with_key(&key).unwrap().seal();
@@ -890,10 +935,10 @@ impl Wallet{
         encrypted
     }
 
-    pub fn secure_cell_decrypt(themis_secure_cell_config: SecureCellConfig) -> Result<Vec<u8> , themis::Error>{
+    pub fn secure_cell_decrypt(secure_cell_config: &mut SecureCellConfig) -> Result<Vec<u8> , themis::Error>{
 
-        let key = themis_secure_cell_config.secret_key;
-        let data = themis_secure_cell_config.data; /* this is the raw data */
+        let key = secure_cell_config.clone().secret_key;
+        let data = secure_cell_config.clone().data; /* this is the raw data */
 
         let key = SymmetricKey::try_from_slice(key.as_bytes()).unwrap();
         let cell = SecureCell::with_key(&key).unwrap().seal();
@@ -902,10 +947,10 @@ impl Wallet{
         decrypted
     }
 
-    pub fn self_secure_cell_encrypt(&mut self, themis_secure_cell_config: SecureCellConfig) -> Result<Vec<u8> , themis::Error>{
+    pub fn self_secure_cell_encrypt(&mut self, secure_cell_config: &mut SecureCellConfig) -> Result<Vec<u8> , themis::Error>{
 
-        let key = themis_secure_cell_config.secret_key;
-        let data = themis_secure_cell_config.data; /* this is the encrypted data */
+        let key = secure_cell_config.clone().secret_key;
+        let data = secure_cell_config.clone().data; /* this is the encrypted data */
 
         let key = SymmetricKey::try_from_slice(key.as_bytes()).unwrap();
         let cell = SecureCell::with_key(&key).unwrap().seal();
@@ -914,10 +959,10 @@ impl Wallet{
         encrypted
     }
 
-    pub fn self_secure_cell_decrypt(&mut self, themis_secure_cell_config: SecureCellConfig) -> Result<Vec<u8> , themis::Error>{
+    pub fn self_secure_cell_decrypt(&mut self, secure_cell_config: &mut SecureCellConfig) -> Result<Vec<u8> , themis::Error>{
 
-        let key = themis_secure_cell_config.secret_key;
-        let data = themis_secure_cell_config.data;
+        let key = secure_cell_config.clone().secret_key;
+        let data = secure_cell_config.clone().data;
 
         let key = SymmetricKey::try_from_slice(key.as_bytes()).unwrap();
         let cell = SecureCell::with_key(&key).unwrap().seal();
@@ -1000,10 +1045,10 @@ pub mod tests{
         let contract = Contract::new_with_ed25519("0xDE6D7045Df57346Ec6A70DfE1518Ae7Fe61113f4");
         Wallet::save_to_json(&contract.wallet, "ed25519").unwrap();
         
-        let signature_hex = Wallet::ed25519_sign(stringify_data.clone().as_str(), contract.wallet.ed25519_secret_key.as_ref().unwrap().as_str());
+        let signature_base58 = Wallet::ed25519_sign(stringify_data.clone().as_str(), contract.wallet.ed25519_secret_key.as_ref().unwrap().as_str());
 
         let hash_of_data = Wallet::generate_keccak256_hash_from(&stringify_data);
-        let verify_res = Wallet::verify_ed25519_signature(signature_hex.clone().unwrap().as_str(), hash_of_data.as_slice(), contract.wallet.ed25519_public_key.unwrap().as_str());
+        let verify_res = Wallet::verify_ed25519_signature(signature_base58.clone().unwrap().as_str(), hash_of_data.as_slice(), contract.wallet.ed25519_public_key.unwrap().as_str());
 
         let keypair = Wallet::retrieve_ed25519_keypair(
             /* 
@@ -1017,7 +1062,7 @@ pub mod tests{
             Ok(is_verified) => {
                 
                 /* fill the signature and signed_at fields if the signature was valid */
-                data.signature = signature_hex.unwrap();
+                data.signature = signature_base58.unwrap();
                 data.signed_at = chrono::Local::now().timestamp_nanos();
                 Ok(())
 
@@ -1037,7 +1082,7 @@ pub mod tests{
         };
         let stringify_data = serde_json::to_string_pretty(&data).unwrap();
 
-        let mut aes256config = Aes256Config{
+        let mut aes256config = &mut Aes256Config{
             secret_key: String::from("This is an example of a very secret key. Keep it always secret!!"),
             nonce: String::from("my unique nonce!"),
             data: stringify_data.as_bytes().to_vec(),
@@ -1048,12 +1093,14 @@ pub mod tests{
         let contract = Contract::new_with_ed25519("0xDE6D7045Df57346Ec6A70DfE1518Ae7Fe61113f4");
         Wallet::save_to_json(&contract.wallet, "ed25519").unwrap();
         
-        let signature_hex = Wallet::ed25519_aes256_sign(contract.wallet.ed25519_secret_key.as_ref().unwrap().as_str(), aes256config.clone());
+        let signature_base58 = Wallet::ed25519_aes256_sign(contract.wallet.ed25519_secret_key.as_ref().unwrap().as_str(), aes256config);
 
-        let hash_of_data = Wallet::generate_aes256_from(aes256config.clone());
+        /* aes256config.data now contains the aes256 hash of the raw data */
+        let hash_of_data = aes256config.clone().data;
         println!("aes256 encrypted data :::: {:?}", hex::encode(&hash_of_data));
+        println!("signature :::: {:?}", signature_base58.clone());
 
-        let verify_res = Wallet::verify_ed25519_signature(signature_hex.clone().unwrap().as_str(), hash_of_data.as_slice(), contract.wallet.ed25519_public_key.unwrap().as_str());
+        let verify_res = Wallet::verify_ed25519_signature(signature_base58.clone().unwrap().as_str(), hash_of_data.as_slice(), contract.wallet.ed25519_public_key.unwrap().as_str());
 
         let keypair = Wallet::retrieve_ed25519_keypair(
             /* 
@@ -1076,7 +1123,79 @@ pub mod tests{
 
                     println!("✅ got same data");
                     /* fill the signature and signed_at fields if the signature was valid */
-                    data.signature = signature_hex.unwrap();
+                    data.signature = signature_base58.unwrap();
+                    data.signed_at = chrono::Local::now().timestamp_nanos();
+                    return Ok(());
+
+                } else{
+
+                    eprintln!("🔴 invalid data");
+                    Ok(())
+                }
+
+            },
+            Err(e) => Err(e)
+        }
+
+    }
+
+    #[test]
+    pub fn ed25519_secure_cell_test() -> Result<(), ring::error::Unspecified>{
+        
+        let mut data = DataBucket{
+            value: "json stringify data".to_string(), /* json stringify */ 
+            signature: "".to_string(),
+            signed_at: 0,
+        };
+        let stringify_data = serde_json::to_string_pretty(&data).unwrap();
+
+        let mut secure_cell_config = &mut SecureCellConfig{
+            secret_key: hex::encode(Wallet::generate_keccak256_hash_from(&String::from("very secret key"))),
+            passphrase: String::from(""),
+            data: stringify_data.as_bytes().to_vec(),
+        };
+
+        /* wallet operations */
+
+        let contract = Contract::new_with_ed25519("0xDE6D7045Df57346Ec6A70DfE1518Ae7Fe61113f4");
+        Wallet::save_to_json(&contract.wallet, "ed25519").unwrap();
+        
+        let signature_base58 = Wallet::ed25519_secure_cell_sign(contract.wallet.ed25519_secret_key.as_ref().unwrap().as_str(), secure_cell_config).unwrap();
+        
+        /* secure_cell_config.data now contains the aes256 hash of the raw data */
+        let hash_of_data = secure_cell_config.clone().data;
+        println!("secure cell aes256 encrypted data :::: {:?}", hex::encode(&hash_of_data));
+        println!("signature :::: {:?}", signature_base58.clone());
+
+        /* 
+            note that don't generate a new hash data since it'll generate a new one which is 
+            completely different from the one generated in signing process, use the one 
+            inside the data field of the secure_cell_config instance
+        */
+        let verify_res = Wallet::verify_ed25519_signature(signature_base58.clone().as_str(), hash_of_data.as_slice(), contract.wallet.ed25519_public_key.unwrap().as_str());
+
+        let keypair = Wallet::retrieve_ed25519_keypair(
+            /* 
+                unwrap() takes the ownership of the type hence we must borrow 
+                the type before calling it using as_ref() 
+            */
+            contract.wallet.ed25519_secret_key.unwrap().as_str()
+        );
+
+        match verify_res{
+            Ok(is_verified) => {
+
+                secure_cell_config.data = hash_of_data.clone(); /* update data field with encrypted form of raw data */
+                let dec = Wallet::secure_cell_decrypt(secure_cell_config).unwrap();
+                println!("secure cell aes256 decrypted data :::: {:?}", std::str::from_utf8(&dec));
+
+                let deserialized_data = serde_json::from_str::<DataBucket>(std::str::from_utf8(&dec).unwrap()).unwrap();
+                
+                if deserialized_data == data{
+
+                    println!("✅ got same data");
+                    /* fill the signature and signed_at fields if the signature was valid */
+                    data.signature = signature_base58;
                     data.signed_at = chrono::Local::now().timestamp_nanos();
                     return Ok(());
 
