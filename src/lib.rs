@@ -28,28 +28,12 @@ use base64::{engine::general_purpose, Engine as _};
 use base58::{ToBase58, FromBase58};
 use aes256ctr_poly1305aes::{Aes256CtrPoly1305Aes, Key, Nonce};
 use aes256ctr_poly1305aes::aead::Aead;
+use themis::keys::SymmetricKey;
+use themis::secure_cell::SecureCell;
 
+pub mod misc;
+use crate::misc::*;
 
-/* 
-    converting the String into an static str by leaking the memory of the 
-    String to create a longer lifetime allocation for an slice of the String 
-*/
-fn string_to_static_str(s: String) -> &'static str { 
-    Box::leak(s.into_boxed_str()) 
-}
-
-/* converting an slice array of u8 bytes into an array with 32 byte length */
-fn convert_into_u8_32(data: &[u8]) -> Option<[u8; 32]>{
-    data.try_into().ok()
-}
-
-fn convert_into_u8_64(data: &[u8]) -> Option<[u8; 64]>{
-    data.try_into().ok()
-}
-
-fn convert_into_u8_16(data: &[u8]) -> Option<[u8; 16]>{
-    data.try_into().ok()
-}
 
 /** 
      ---------------------------------------------------------------------
@@ -57,16 +41,16 @@ fn convert_into_u8_16(data: &[u8]) -> Option<[u8; 16]>{
     |---------------------------------------------------------------------
     |
     |       CURVES
-    | ed25519   -> EdDSA                                                    ::::::: ring
-    | secp256k1 -> EC (can be imported in EVM based wallets like metamask)  ::::::: secp256k1
-    | secp256r1 -> ECDSA                                                    ::::::: themis
+    | ed25519   -> EdDSA                                                      ::::::: ring
+    | secp256k1 -> ECDSA (can be imported in EVM based wallets like metamask) ::::::: secp256k1
+    | secp256r1 -> ECDSA                                                      ::::::: themis
     |
     |  secp256k1 ENTROPY: BIP39 SEED PHRASES
     |
     |       256 BITS HASH METHDOS
     | sha2
-    | sha3 keccak
-    | aes
+    | sha3 keccak256 -> Default used in signing methods
+    | aes256
     |
 
     https://github.com/skerkour/black-hat-rust/tree/main/ch_11
@@ -163,24 +147,6 @@ pub mod evm{
 
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
-pub struct DataBucket{
-    pub value: String, /* any json stringify data */
-    pub signed_at: i64,
-    pub signature: String
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, Default)]
-pub struct Wallet {
-    pub secp256k1_secret_key: Option<String>,
-    pub secp256k1_public_key: Option<String>,
-    pub secp256k1_public_address: Option<String>,
-    pub secp256k1_mnemonic: Option<String>,
-    pub secp256r1_secret_key: Option<String>,
-    pub secp256r1_public_key: Option<String>,
-    pub ed25519_secret_key: Option<String>,
-    pub ed25519_public_key: Option<String>
-}
 
 impl Wallet{
 
@@ -894,7 +860,7 @@ impl Wallet{
         Ok(())
     }
 
-    pub fn self_save_to_json(&mut self, wallet: &Wallet, _type: &str) -> Result<(), ()>{
+    pub fn self_save_to_json(&mut self, _type: &str) -> Result<(), ()>{
 
         let walletdir = std::fs::create_dir_all("wallexerr-keys").unwrap();
         let errordir = std::fs::create_dir_all("logs").unwrap();
@@ -903,7 +869,7 @@ impl Wallet{
         let mut file = std::fs::File::create(walletpath).unwrap();
         let mut filelog = std::fs::File::create(errorpath).unwrap();
         
-        let pretty_json = serde_json::to_string_pretty(wallet).unwrap();
+        let pretty_json = serde_json::to_string_pretty(self).unwrap();
         let write_res = file.write(pretty_json.as_bytes());
         if let Err(why) = write_res{
             filelog.write(why.to_string().as_bytes());
@@ -911,22 +877,55 @@ impl Wallet{
 
         Ok(())
     }
+
+    pub fn secure_cell_encrypt(themis_secure_cell_config: SecureCellConfig) -> Result<Vec<u8> , themis::Error>{
+
+        let key = themis_secure_cell_config.secret_key;
+        let data = themis_secure_cell_config.data;
+
+        let key = SymmetricKey::try_from_slice(key.as_bytes()).unwrap();
+        let cell = SecureCell::with_key(&key).unwrap().seal();
+
+        let encrypted = cell.encrypt(&data);
+        encrypted
+    }
+
+    pub fn secure_cell_decrypt(themis_secure_cell_config: SecureCellConfig) -> Result<Vec<u8> , themis::Error>{
+
+        let key = themis_secure_cell_config.secret_key;
+        let data = themis_secure_cell_config.data; /* this is the raw data */
+
+        let key = SymmetricKey::try_from_slice(key.as_bytes()).unwrap();
+        let cell = SecureCell::with_key(&key).unwrap().seal();
+
+        let decrypted = cell.decrypt(&data);
+        decrypted
+    }
+
+    pub fn self_secure_cell_encrypt(&mut self, themis_secure_cell_config: SecureCellConfig) -> Result<Vec<u8> , themis::Error>{
+
+        let key = themis_secure_cell_config.secret_key;
+        let data = themis_secure_cell_config.data; /* this is the encrypted data */
+
+        let key = SymmetricKey::try_from_slice(key.as_bytes()).unwrap();
+        let cell = SecureCell::with_key(&key).unwrap().seal();
+
+        let encrypted = cell.encrypt(&data);
+        encrypted
+    }
+
+    pub fn self_secure_cell_decrypt(&mut self, themis_secure_cell_config: SecureCellConfig) -> Result<Vec<u8> , themis::Error>{
+
+        let key = themis_secure_cell_config.secret_key;
+        let data = themis_secure_cell_config.data;
+
+        let key = SymmetricKey::try_from_slice(key.as_bytes()).unwrap();
+        let cell = SecureCell::with_key(&key).unwrap().seal();
+
+        let decrypted = cell.decrypt(&data);
+        decrypted
+    }
     
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug, Default)]
-pub struct Aes256Config{
-    pub secret_key: String, // 64 bytes
-    pub nonce: String, // 16 bytes - unique per each message
-    pub data: Vec<u8> // either encrypted or decrypted
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug, Default)]
-pub struct Contract{
-    pub wallet: Wallet,
-    pub iat: i64,
-    pub owner: &'static str,
-    pub data: Option<DataBucket>,
 }
 
 impl Contract{

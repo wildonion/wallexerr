@@ -1,8 +1,8 @@
 {
-  "secp256k1_secret_key": "96d55941634f7695bd4d61a62d2f0d1b0cea34312ab7fbfb15482142a1578ff2",
-  "secp256k1_public_key": "021056e51bb676635212cae8349a072fca9c3357461814914ddd920e2678ede2c5",
-  "secp256k1_public_address": "0x35a86d6580cc3f8a5ced9df7b1e89d58951288d0",
-  "secp256k1_mnemonic": "credit planet chief shoulder rookie say source tail spider very glory margin",
+  "secp256k1_secret_key": "b33d6e6e7c98feab641be6ac1b59ac042aabef3db67930ea8ef3fc95e1fd4167",
+  "secp256k1_public_key": "03830ce59d9d1b24feb00a6930ea5f10ac22114327bdf30c8a17a22ef6cf3564a4",
+  "secp256k1_public_address": "0x2a9d75581b3a70653f3acf9909856047f51a438b",
+  "secp256k1_mnemonic": "avocado pipe glove alcohol device hybrid benefit boss case tank march flag",
   "secp256r1_secret_key": null,
   "secp256r1_public_key": null,
   "ed25519_secret_key": null,
