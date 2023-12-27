@@ -1,8 +1,8 @@
 {
-  "secp256k1_secret_key": "18e3fffcde6d99882d382293cf2f3e41b3483d1a44fe2a93ca2dc0f5bcdba063",
-  "secp256k1_public_key": "02af9c231f71a8a0cf4498cd1d12d41cae858e191d8ae506386b1aa1b1a12b6498",
-  "secp256k1_public_address": "0x71216d22df9f1b73fe7d98e0d9c2c842005df9fd",
-  "secp256k1_mnemonic": "sugar spot rocket eight acoustic boost awake main alcohol galaxy shallow good",
+  "secp256k1_secret_key": "2d90ad8f55c2f24fcba669773b459efc386868448221b6a6973186a11ff70884",
+  "secp256k1_public_key": "02488e31ac837cbb47b3620aaf18c7b038c4a85bf36ccc8ceaaf22c8e8f370247d",
+  "secp256k1_public_address": "0x0edc7497e61a87336fe8a07802418ac72c869529",
+  "secp256k1_mnemonic": "design method recycle gap broken polar obey chief heavy plate gain unique",
   "secp256r1_secret_key": null,
   "secp256r1_public_key": null,
   "ed25519_secret_key": null,

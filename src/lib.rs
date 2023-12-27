@@ -40,18 +40,30 @@ use crate::misc::*;
     |   RSA (Asymmetric) Crypto Wallet Implementations using ECC Curves
     |---------------------------------------------------------------------
     |
-    |       CURVES
-    | ed25519   -> EdDSA                                                      ::::::: ring
-    | secp256k1 -> ECDSA (can be imported in EVM based wallets like metamask) ::::::: secp256k1
-    | secp256r1 -> ECDSA                                                      ::::::: themis
+    |        CURVES                                         CRATE
+    | ed25519   -> EdDSA                                ::::::: ring
+    | secp256k1 -> ECDSA                                ::::::: secp256k1
+    | secp256r1 -> ECDSA                                ::::::: themis
     |
-    |  secp256k1 ENTROPY: BIP39 SEED PHRASES
+    |       ENTROPIES
+    | secp256k1 -> BIP39 SEED PHRASES
+    | ed25519   -> ring_rand::SystemRandom
+    | secp256r1 -> random Elliptic Curve key pair
     |
-    |       256 BITS HASH METHDOS
-    | sha2
-    | sha3 keccak256 -> Default used in signing methods
-    | aes256
+    |     KEYPAIR FORMAT
+    | secp256k1 -> hex
+    | secp256r1 -> hex
+    | ed25519   -> base58(used)/base64(tested)
     |
+    |      HASH METHDOS                                     CRATE
+    | sha2                                              ::::::: sha2
+    | sha3 keccak256 -> Default used in signing methods ::::::: tiny_keccak
+    | aes256                                            ::::::: aes256ctr_poly1305aes
+    | themis secure cell                                ::::::: themis::secure_cell::SecureCell
+    | argon2                                            ::::::: argon2
+    |
+
+    Note: Secp256k1 keypair can be imported in EVM based wallets like metamask
 
     https://github.com/skerkour/black-hat-rust/tree/main/ch_11
     https://cryptobook.nakov.com/digital-signatures
@@ -381,6 +393,28 @@ impl Wallet{
         
         Some(base58_sig_string)
 
+    }
+
+    pub fn generate_argon2_hash_from(data: &str, salt: &str) -> Result<String, argon2::Error>{
+        let salt_bytes = salt.as_bytes();
+        let data_bytes = data.as_bytes();
+        argon2::hash_encoded(data_bytes, salt_bytes, &argon2::Config::default())
+    }
+
+    pub fn self_generate_argon2_hash_from(&mut self, data: &str, salt: &str) -> Result<String, argon2::Error>{
+        let salt_bytes = salt.as_bytes();
+        let data_bytes = data.as_bytes();
+        argon2::hash_encoded(data_bytes, salt_bytes, &argon2::Config::default())
+    }
+
+    pub fn verify_argon2_hash(data_hash: &str, data: &str) -> Result<bool, argon2::Error>{
+        let data_bytes = data.as_bytes();
+        Ok(argon2::verify_encoded(data_hash, data_bytes).unwrap())
+    }
+
+    pub fn self_verify_argon2_hash(&mut self, data_hash: &str, data: &str) -> Result<bool, argon2::Error>{
+        let data_bytes = data.as_bytes();
+        Ok(argon2::verify_encoded(data_hash, data_bytes).unwrap())
     }
 
     /* 
@@ -1044,7 +1078,8 @@ pub mod tests{
 
         let contract = Contract::new_with_ed25519("0xDE6D7045Df57346Ec6A70DfE1518Ae7Fe61113f4");
         Wallet::save_to_json(&contract.wallet, "ed25519").unwrap();
-        
+
+        /* stringify_data will be hashed inside the ed25519_sign() using sha3 keccak256 bits */
         let signature_base58 = Wallet::ed25519_sign(stringify_data.clone().as_str(), contract.wallet.ed25519_secret_key.as_ref().unwrap().as_str());
 
         let hash_of_data = Wallet::generate_keccak256_hash_from(&stringify_data);
@@ -1093,6 +1128,7 @@ pub mod tests{
         let contract = Contract::new_with_ed25519("0xDE6D7045Df57346Ec6A70DfE1518Ae7Fe61113f4");
         Wallet::save_to_json(&contract.wallet, "ed25519").unwrap();
         
+        /* stringify_data will be hashed inside the ed25519_sign() using aes256 bits */
         let signature_base58 = Wallet::ed25519_aes256_sign(contract.wallet.ed25519_secret_key.as_ref().unwrap().as_str(), aes256config);
 
         /* aes256config.data now contains the aes256 hash of the raw data */
@@ -1159,7 +1195,8 @@ pub mod tests{
 
         let contract = Contract::new_with_ed25519("0xDE6D7045Df57346Ec6A70DfE1518Ae7Fe61113f4");
         Wallet::save_to_json(&contract.wallet, "ed25519").unwrap();
-        
+
+        /* stringify_data will be hashed inside the ed25519_sign() using themis secure cell aes256 bits */
         let signature_base58 = Wallet::ed25519_secure_cell_sign(contract.wallet.ed25519_secret_key.as_ref().unwrap().as_str(), secure_cell_config).unwrap();
         
         /* secure_cell_config.data now contains the aes256 hash of the raw data */
