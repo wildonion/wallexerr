@@ -225,11 +225,20 @@ impl Wallet{
     
     pub fn new_secp256k1(passphrase: &str, mnemonic: Option<&str>) -> Self{
 
-        let seed_mnemonic_bytes_and_string = Self::generate_seed_phrases(passphrase);
+        let mut secp256k1_mnemonic = None;
+        
         let seed_mnemonic_hash_bytes = if mnemonic.is_some(){
-            Self::generate_keccak256_hash_from(mnemonic.unwrap())
+            
+            /* generating hash of the seed phrase from the passed in mnemonic */
+            let seed_mnemonic_bytes_and_string = Self::generate_seed_phrases_from(passphrase, mnemonic.unwrap());
+            secp256k1_mnemonic = Some(mnemonic.unwrap().to_string());
+            seed_mnemonic_bytes_and_string.0 // sha256 bits hash of the generated seed phrase from mnemonic
         } else{
-            seed_mnemonic_bytes_and_string.0
+
+            /* generating hash of the seed phrase from a new mnemonic */
+            let seed_mnemonic_bytes_and_string = Self::generate_seed_phrases(passphrase);
+            secp256k1_mnemonic = Some(seed_mnemonic_bytes_and_string.1);
+            seed_mnemonic_bytes_and_string.0 // sha256 bits hash of the generated seed phrase from mnemonic
         };
 
         /* generate rng from hash of the seed phrase */
@@ -244,7 +253,7 @@ impl Wallet{
             secp256k1_secret_key: Some(prv_str), /* (compatible with all evm based chains) */
             secp256k1_public_key: Some(pubk.to_string()),
             secp256k1_public_address: Some(Self::generate_keccak256_from(pubk.to_string())),
-            secp256k1_mnemonic: Some(seed_mnemonic_bytes_and_string.1),
+            secp256k1_mnemonic,
             secp256r1_public_key: None,
             secp256r1_secret_key: None,
             ed25519_public_key: None,
@@ -884,13 +893,48 @@ impl Wallet{
         output
     }
 
+    pub fn generate_zkp_comparator() -> themis::secure_comparator::SecureComparator{
+
+        themis::secure_comparator::SecureComparator::new()
+
+    }
+
+    fn generate_seed_phrases_from(passphrase: &str, phrase: &str) -> ([u8; 32], String){
+        
+        /* 
+            1 - create seed from the passed in mnemonic and password
+            2 - sha256 bits hash of generated mnemonic based seed to create hight entropy seed
+            3 - generate rng based on output of step 2
+        */
+
+        /* generating new mnemonic from the passed in phrase */
+        let mnemonic = Mnemonic::from_phrase(phrase, Language::English).unwrap();
+        
+        /* generating seed from the password and generated menmonic */
+        let bip_seed_phrases = Seed::new(&mnemonic, passphrase);
+        
+        /*          -------------- generating sha25 bits hash of data --------------
+            generating a 32 bytes hash of the bip_seed_phrases using sha256 we're doing this
+            because StdRng::from_seed() takes 32 bytes seed to generate the rng 
+        */
+        let mut hasher = Sha256::new();
+        hasher.update(bip_seed_phrases.as_bytes());
+        let hash_data = hasher.finalize();
+        let hash_data_bytes: [u8; 32] = hash_data.into();
+
+        /* we'll use the sha256 hash of the seed to generate the keypair */
+        let seed_bytes = hash_data_bytes.to_owned();
+
+        (seed_bytes, mnemonic.to_string())
+
+    }
+
     fn generate_seed_phrases(passphrase: &str) -> ([u8; 32], String){
 
         /* 
-
             1 - create mnemonic words
             2 - create seed from mnemonic and password
-            3 - sha256 bits hash of generated mnemonic based seed
+            3 - sha256 bits hash of generated mnemonic based seed to create hight entropy seed
             4 - generate rng based on output of step 3
 
             creating mnemonic words as the seed phrases for deriving secret keys, by doing this
@@ -899,8 +943,8 @@ impl Wallet{
             keypair for the wallet owner and by recovering the seed phrase wen can recover 
             the entire wallet.
         */
-        let mnemoni_type = MnemonicType::for_word_count(12).unwrap();
-        let mnemonic = Mnemonic::new(mnemoni_type, Language::English);
+        let mnemonic_type = MnemonicType::for_word_count(12).unwrap();
+        let mnemonic = Mnemonic::new(mnemonic_type, Language::English);
         
         /* generating seed from the password and generated menmonic */
         let bip_seed_phrases = Seed::new(&mnemonic, passphrase);
@@ -1314,7 +1358,7 @@ pub mod tests{
         /* wallet operations */
         // let existing_mnemonic_sample = Some("obot glare amazing hip saddle habit soft barrel sell fine document february");
         // let contract = Contract::new_with_secp256k1("0xDE6D7045Df57346Ec6A70DfE1518Ae7Fe61113f4", "wildonion123", existing_mnemonic_sample, None);
-        let contract = Contract::new_with_secp256k1("0xDE6D7045Df57346Ec6A70DfE1518Ae7Fe61113f4", "wildonion123", None);
+        let contract = Contract::new_with_secp256k1("0xDE6D7045Df57346Ec6A70DfE1518Ae7Fe61113f4", "wildonion123", Some("lottery ensure legend fluid ketchup drip bundle flee either guess save enact"));
         Wallet::save_to_json(&contract.wallet, "secp256k1").unwrap();
 
         let signature = Wallet::secp256k1_sign(contract.wallet.secp256k1_secret_key.as_ref().unwrap().to_string().as_str(), stringify_data.clone().as_str());
